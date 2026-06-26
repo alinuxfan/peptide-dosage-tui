@@ -145,7 +145,7 @@ Header {
     color: #38bdf8;
     text-align: center;
     height: 3;
-    border-bottom: tall #38bdf8;
+    border-bottom: solid #38bdf8;
 }
 
 Footer {
@@ -169,23 +169,20 @@ TabbedContent {
     background: #1e293b;
     border: solid #334155;
     padding: 1 2;
-    border-radius: 4;
 }
 
 .results-panel {
     background: #1e293b;
     border: solid #334155;
     padding: 1 2;
-    border-radius: 4;
     layout: vertical;
 }
 
 .title-label {
     color: #38bdf8;
     text-style: bold;
-    font-size: 110%;
     margin-bottom: 1;
-    border-bottom: thin #334155;
+    border-bottom: solid #334155;
     padding-bottom: 1;
 }
 
@@ -240,7 +237,7 @@ Select:focus {
     layout: horizontal;
     height: 3;
     content-align: left middle;
-    border-bottom: thin #334155;
+    border-bottom: solid #334155;
 }
 
 .result-label {
@@ -270,13 +267,12 @@ Select:focus {
     padding: 1;
     margin-top: 1;
     color: #94a3b8;
-    font-size: 85%;
 }
 
 .schedule-header {
     layout: horizontal;
     height: 5;
-    align: space-between middle;
+    align: right middle;
     padding: 1 2;
     background: #1e293b;
     border-bottom: solid #334155;
@@ -285,7 +281,6 @@ Select:focus {
 .schedule-title {
     color: #38bdf8;
     text-style: bold;
-    font-size: 110%;
 }
 
 DataTable {
@@ -305,7 +300,6 @@ DataTable {
     border: solid #334155;
     padding: 1 2;
     margin-bottom: 1;
-    border-radius: 4;
 }
 
 .info-title {
@@ -317,7 +311,6 @@ DataTable {
 .info-text {
     color: #cbd5e1;
     margin-bottom: 1;
-    line-height: 1.4;
 }
 
 #save-schedule-btn {
@@ -374,7 +367,7 @@ class PeptideCalculatorApp(App):
                         with Horizontal(classes="preset-row"):
                             yield Button("1mL", id="water-btn-1")
                             yield Button("2mL", id="water-btn-2")
-                            yield Button("2.5mL", id="water-btn-2.5")
+                            yield Button("2.5mL", id="water-btn-2_5")
                             yield Button("3mL", id="water-btn-3")
                         yield Input(value="2.0", placeholder="Enter mL...", id="water-input")
                         yield Label(
@@ -516,8 +509,9 @@ class PeptideCalculatorApp(App):
             self.vial_mg = float(val)
         elif btn_id.startswith("water-btn-"):
             val = btn_id.replace("water-btn-", "")
-            self.query_one("#water-input", Input).value = val
-            self.water_ml = float(val)
+            val_clean = val.replace("_", ".")
+            self.query_one("#water-input", Input).value = val_clean
+            self.water_ml = float(val_clean)
         elif btn_id == "save-schedule-btn":
             self.save_schedule_to_file()
             
