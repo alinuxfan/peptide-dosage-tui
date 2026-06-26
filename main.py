@@ -77,7 +77,7 @@ PEPTIDE_DEFAULTS = {
         "dose": 2.5,
         "unit": "mg",
         "freq": "weekly",
-        "notes": "GIP/GLP-1 receptor agonist. Standard titration starts at 2.5mg weekly for 4 weeks.",
+        "notes": "GIP/GLP-1 receptor agonist (often referred to as GLP-2 dual agonist). Titrated monthly.",
         "schedule": [
             ("Week 1-4 (Titration)", 2.5, "mg"),
             ("Week 5-8 (Titration)", 5.0, "mg"),
@@ -85,6 +85,88 @@ PEPTIDE_DEFAULTS = {
             ("Week 13-16 (Titration)", 10.0, "mg"),
             ("Week 17-20 (Titration)", 12.5, "mg"),
             ("Week 21+ (Maintenance)", 15.0, "mg"),
+        ]
+    },
+    "Retatrutide": {
+        "vial_mg": 5.0,
+        "water_ml": 2.0,
+        "dose": 2.0,
+        "unit": "mg",
+        "freq": "weekly",
+        "notes": "GLP-1/GIP/GCGR triple agonist (GLP-3). Standard titration starts at 2mg weekly.",
+        "schedule": [
+            ("Week 1-4 (Titration)", 2.0, "mg"),
+            ("Week 5-8 (Titration)", 4.0, "mg"),
+            ("Week 9-12 (Titration)", 8.0, "mg"),
+            ("Week 13+ (Maintenance)", 12.0, "mg"),
+        ]
+    },
+    "MOTS-c": {
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 5.0,
+        "unit": "mg",
+        "freq": "3x weekly",
+        "notes": "Mitochondria-derived peptide. Dosed 5mg three times weekly (e.g. Mon/Wed/Fri) for 4-6 weeks.",
+        "schedule": [
+            ("Week 1-4 (Active)", 5.0, "mg"),
+        ]
+    },
+    "GLOW Blend": {
+        "vial_mg": 50.0,
+        "water_ml": 3.0,
+        "dose": 1.5,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Cosmetic cellular renewal blend containing GHK-Cu, BPC-157, and TB-500.",
+        "schedule": [
+            ("Week 1-4 (Daily)", 1.5, "mg"),
+        ]
+    },
+    "KLOW Blend": {
+        "vial_mg": 50.0,
+        "water_ml": 3.0,
+        "dose": 1.5,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Anti-inflammatory and skin/hair recovery blend containing GHK-Cu, BPC-157, TB-500, and KPV.",
+        "schedule": [
+            ("Week 1-4 (Daily)", 1.5, "mg"),
+        ]
+    },
+    "Sermorelin": {
+        "vial_mg": 5.0,
+        "water_ml": 2.5,
+        "dose": 300.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "GHRH analogue promoting natural GH release. Typically injected nightly.",
+        "schedule": [
+            ("Week 1-12 (Nightly)", 300.0, "mcg"),
+        ]
+    },
+    "AOD-9604": {
+        "vial_mg": 5.0,
+        "water_ml": 2.0,
+        "dose": 300.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "Anti-obesity peptide fragment. Administered in the morning on an empty stomach.",
+        "schedule": [
+            ("Week 1-12 (Morning)", 300.0, "mcg"),
+        ]
+    },
+    "NAD+": {
+        "vial_mg": 500.0,
+        "water_ml": 5.0,
+        "dose": 50.0,
+        "unit": "mg",
+        "freq": "twice weekly",
+        "notes": "Nicotinamide Adenine Dinucleotide. Reconstituted at 100mg/mL. Subcutaneous injection.",
+        "schedule": [
+            ("Week 1-2 (Starting)", 25.0, "mg"),
+            ("Week 3-4 (Target)", 50.0, "mg"),
+            ("Week 5+ (Maintenance)", 100.0, "mg"),
         ]
     },
     "Custom / Other": {
@@ -443,11 +525,36 @@ class PeptideCalculatorApp(App):
                             classes="info-text"
                         )
                     with Vertical(classes="info-section"):
-                        yield Label("GLP-1 Receptor Agonists (Weight Management)", classes="info-title")
+                        yield Label("GLP-1s, GLP-2s, and GLP-3s (Semaglutide, Tirzepatide, Retatrutide)", classes="info-title")
                         yield Label(
-                            "• Semaglutide weekly titration: Weeks 1-4: 0.25mg | Weeks 5-8: 0.5mg | Weeks 9-12: 1.0mg | Weeks 13-16: 1.7mg | Weeks 17+: 2.4mg.\n"
-                            "• Tirzepatide weekly titration: Weeks 1-4: 2.5mg | Weeks 5-8: 5mg | Weeks 9-12: 7.5mg | Weeks 13-16: 10mg | Weeks 17-20: 12.5mg | Weeks 21+: 15mg.\n"
+                            "• Semaglutide (GLP-1): Weekly titration starting at 0.25mg (Weeks 1-4) up to 2.4mg.\n"
+                            "• Tirzepatide (GLP-1/GIP): Weekly titration starting at 2.5mg (Weeks 1-4) up to 15mg.\n"
+                            "• Retatrutide (GLP-1/GIP/GCGR Triple Agonist): Weekly titration starting at 2.0mg (Weeks 1-4) up to 12mg.\n"
                             "• Reconstitution: 2.0 mL to 3.0 mL BAC water per vial to ensure comfortable syringe draws.",
+                            classes="info-text"
+                        )
+                    with Vertical(classes="info-section"):
+                        yield Label("MOTS-c & NAD+ (Cellular Health & Mitochondrial Support)", classes="info-title")
+                        yield Label(
+                            "• MOTS-c: 5 mg to 10 mg twice or three times weekly (usually 5mg 3x a week for 4-6 weeks).\n"
+                            "• NAD+: 25 mg to 100 mg subcutaneous injection twice or three times weekly.\n"
+                            "• Reconstitution: MOTS-c 2.0 mL per 10mg vial. NAD+ 5.0 mL BAC water per 500mg vial (100mg/mL).",
+                            classes="info-text"
+                        )
+                    with Vertical(classes="info-section"):
+                        yield Label("GLOW & KLOW Blends (Anti-aging & Cellular Repair)", classes="info-title")
+                        yield Label(
+                            "• GLOW: Blend of GHK-Cu, BPC-157, TB-500. Standard dose is 1.5mg daily (based on GHK-Cu weight).\n"
+                            "• KLOW: Adds anti-inflammatory KPV to GHK-Cu, BPC-157, and TB-500. Standard dose is 1.5mg daily.\n"
+                            "• Reconstitution: 3.0 mL BAC water per 50mg vial. Higher water volumes reduce the standard GHK-Cu injection site sting.",
+                            classes="info-text"
+                        )
+                    with Vertical(classes="info-section"):
+                        yield Label("Sermorelin & AOD-9604 (Growth Hormone & Fat Metabolism)", classes="info-title")
+                        yield Label(
+                            "• Sermorelin: 300 mcg daily subcutaneous injection, administered nightly before sleep.\n"
+                            "• AOD-9604: 300 mcg daily subcutaneous injection, administered in the morning on an empty stomach.\n"
+                            "• Reconstitution: Sermorelin 2.5 mL per 5mg vial. AOD-9604 2.0 mL per 5mg vial.",
                             classes="info-text"
                         )
         yield Footer()
