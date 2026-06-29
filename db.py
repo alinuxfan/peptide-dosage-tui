@@ -214,6 +214,22 @@ DEFAULT_PEPTIDES = [
         ]
     },
     {
+        "name": "Tesemorelin",
+        "vial_mg": 2.0,
+        "water_ml": 2.0,
+        "dose": 2.0,
+        "unit": "mg",
+        "freq": "daily (at bedtime)",
+        "notes": "GHRH analogue for visceral adipose reduction and growth hormone stimulation. Standard dose: 2mg daily.",
+        "schedule": [
+            ("Week 1-12 (Nightly)", 2.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Effects of Tesemorelin, a Growth Hormone-Releasing Hormone Analogue, in HIV Patients", "pmid": "17148701", "url": "https://pubmed.ncbi.nlm.nih.gov/17148701/"},
+            {"title": "Tesemorelin for the treatment of visceral adiposity", "pmid": "21848416", "url": "https://pubmed.ncbi.nlm.nih.gov/21848416/"}
+        ]
+    },
+    {
         "name": "Custom / Other",
         "vial_mg": 5.0,
         "water_ml": 2.0,
@@ -291,24 +307,22 @@ def init_db():
         cursor.execute("INSERT INTO profiles (name, notes) VALUES ('Alice', 'Sample patient profile A')")
         cursor.execute("INSERT INTO profiles (name, notes) VALUES ('Bob', 'Sample patient profile B')")
 
-    # Populate default master peptides if none exist
-    cursor.execute("SELECT COUNT(*) as count FROM peptides")
-    if cursor.fetchone()["count"] == 0:
-        for p in DEFAULT_PEPTIDES:
-            cursor.execute("""
-            INSERT INTO peptides (name, vial_mg, water_ml, dose, unit, freq, notes, schedule_json, sources_json)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                p["name"],
-                p["vial_mg"],
-                p["water_ml"],
-                p["dose"],
-                p["unit"],
-                p["freq"],
-                p["notes"],
-                json.dumps(p["schedule"]),
-                json.dumps(p["sources"])
-            ))
+    # Populate default master peptides
+    for p in DEFAULT_PEPTIDES:
+        cursor.execute("""
+        INSERT OR IGNORE INTO peptides (name, vial_mg, water_ml, dose, unit, freq, notes, schedule_json, sources_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            p["name"],
+            p["vial_mg"],
+            p["water_ml"],
+            p["dose"],
+            p["unit"],
+            p["freq"],
+            p["notes"],
+            json.dumps(p["schedule"]),
+            json.dumps(p["sources"])
+        ))
 
     conn.commit()
     conn.close()

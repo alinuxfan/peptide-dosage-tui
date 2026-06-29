@@ -199,9 +199,25 @@ SelectCurrent {
     border-bottom: solid #334155;
 }
 
+.patient-controls-bar {
+    layout: vertical;
+    padding: 0 1;
+    background: #1e293b;
+    border-bottom: solid #334155;
+    height: 7;
+}
+
+.control-row {
+    layout: horizontal;
+    height: 3;
+    align: left middle;
+    margin-bottom: 0;
+}
+
 .action-title {
     color: #38bdf8;
     text-style: bold;
+    margin-right: 1;
 }
 
 DataTable {
@@ -255,16 +271,16 @@ DataTable {
     background: #10b981;
     color: #0f172a;
     text-style: bold;
-    min-width: 22;
+    min-width: 24;
     margin-left: 1;
     height: 3;
 }
 
-#add-profile-btn {
+#add-profile-btn, #quick-add-peptide-btn {
     background: #38bdf8;
     color: #0f172a;
     text-style: bold;
-    min-width: 14;
+    min-width: 16;
     margin-left: 1;
     height: 3;
 }
@@ -371,13 +387,18 @@ class PeptideCalculatorApp(App):
 
             with TabPane("Patient Tracker (Multi-Person)"):
                 with Vertical():
-                    with Container(classes="action-bar"):
-                        yield Label("Active Person Profile:", classes="action-title")
-                        yield Select(options=[("Default User", "1")], value="1", id="profile-select")
-                        yield Input(placeholder="New person name...", id="new-profile-input")
-                        yield Button("+ Add Profile", id="add-profile-btn")
-                        yield Button("Export Patient Reference Sheet", id="export-patient-sheet-btn")
-                        yield Button("Remove Selected Protocol", id="delete-protocol-btn")
+                    with Container(classes="patient-controls-bar"):
+                        with Horizontal(classes="control-row"):
+                            yield Label("Active Person Profile:", classes="action-title")
+                            yield Select(options=[("Default User", "1")], value="1", id="profile-select")
+                            yield Input(placeholder="New person name...", id="new-profile-input")
+                            yield Button("+ Add Person", id="add-profile-btn")
+                        with Horizontal(classes="control-row"):
+                            yield Label("Quick Add Peptide:", classes="action-title")
+                            yield Select(options=[("BPC-157", "BPC-157")], value="BPC-157", id="patient-add-peptide-select")
+                            yield Button("+ Add to Person", id="quick-add-peptide-btn")
+                            yield Button("🖨️ Export Printable Sheet", id="export-patient-sheet-btn")
+                            yield Button("❌ Remove Selected", id="delete-protocol-btn")
                     yield DataTable(id="patient-protocols-table")
 
             with TabPane("Dosing Schedule Planner"):
@@ -428,8 +449,12 @@ class PeptideCalculatorApp(App):
     def refresh_peptide_templates(self) -> None:
         peptides = db.get_peptides()
         options = [(p["name"], p["name"]) for p in peptides]
+        
         peptide_select = self.query_one("#peptide-select", Select)
         peptide_select.set_options(options)
+        
+        patient_add_select = self.query_one("#patient-add-peptide-select", Select)
+        patient_add_select.set_options(options)
 
     def refresh_patient_protocols_table(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
@@ -536,6 +561,8 @@ class PeptideCalculatorApp(App):
             self.water_ml = float(val_clean)
         elif btn_id == "save-profile-protocol-btn":
             self.save_current_to_profile()
+        elif btn_id == "quick-add-peptide-btn":
+            self.quick_add_peptide_to_patient()
         elif btn_id == "add-profile-btn":
             self.create_new_profile()
         elif btn_id == "export-patient-sheet-btn":
@@ -568,7 +595,35 @@ class PeptideCalculatorApp(App):
             sources
         )
         self.refresh_patient_protocols_table()
-        self.notify(f"Saved {self.peptide} protocol to active profile!", timeout=3.0)
+        profiles = db.get_profiles()
+        prof_name = next((prof["name"] for prof in profiles if prof["id"] == self.active_profile_id), "Person")
+        self.notify(f"Saved {self.peptide} protocol to {prof_name}'s list!", timeout=3.0)
+
+    def quick_add_peptide_to_patient(self) -> None:
+        select_widget = self.query_one("#patient-add-peptide-select", Select)
+        if not select_widget.value or select_widget.value == Select.BLANK:
+            self.notify("Please select a peptide template.", severity="warning")
+            return
+            
+        peptide_name = str(select_widget.value)
+        p = db.get_peptide_by_name(peptide_name)
+        if p:
+            db.add_or_update_user_protocol(
+                self.active_profile_id,
+                p["name"],
+                p["vial_mg"],
+                p["water_ml"],
+                p["dose"],
+                p["unit"],
+                p["freq"],
+                p["notes"],
+                p["schedule"],
+                p["sources"]
+            )
+            self.refresh_patient_protocols_table()
+            profiles = db.get_profiles()
+            prof_name = next((prof["name"] for prof in profiles if prof["id"] == self.active_profile_id), "Person")
+            self.notify(f"Added {peptide_name} to {prof_name}'s protocol list!", timeout=3.0)
 
     def create_new_profile(self) -> None:
         input_widget = self.query_one("#new-profile-input", Input)
