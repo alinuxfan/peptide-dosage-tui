@@ -110,7 +110,7 @@ TabPane {
 
 .input-label {
     text-style: bold;
-    margin-top: 0;
+    margin-top: 1;
     color: #cbd5e1;
 }
 
@@ -142,10 +142,15 @@ Input {
 }
 
 Select {
-    background: #0f172a;
-    border: solid #475569;
-    color: #f1f5f9;
     margin-bottom: 0;
+    height: 3;
+}
+
+SelectCurrent {
+    background: #0f172a;
+    border: solid #38bdf8;
+    color: #38bdf8;
+    text-style: bold;
     height: 3;
 }
 
@@ -207,16 +212,16 @@ DataTable {
 }
 
 .info-pane {
-    padding: 0 1;
-    layout: vertical;
-    height: 1fr;
+    padding: 1 2;
+    height: 100%;
 }
 
 .info-section {
     background: #1e293b;
     border: solid #334155;
-    padding: 1 1;
+    padding: 1 2;
     margin-bottom: 1;
+    height: auto;
 }
 
 .info-title {
@@ -228,19 +233,21 @@ DataTable {
 .info-text {
     color: #cbd5e1;
     margin-bottom: 1;
+    height: auto;
 }
 
 .source-link {
     color: #38bdf8;
     margin-left: 2;
     margin-bottom: 1;
+    height: auto;
 }
 
 #save-profile-protocol-btn {
     background: #38bdf8;
     color: #0f172a;
     text-style: bold;
-    margin-top: 0;
+    margin-top: 1;
     height: 3;
 }
 
@@ -382,14 +389,7 @@ class PeptideCalculatorApp(App):
 
             with TabPane("Peptide Reference & Cited Sources"):
                 with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
-                    for p in db.get_peptides():
-                        with Vertical(classes="info-section"):
-                            yield Label(f"🔬 {p['name']} Reference & Clinical Guidelines", classes="info-title")
-                            yield Static(f"• Standard Vial: {p['vial_mg']} mg | Recommended BAC Water: {p['water_ml']} mL\n• Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
-                            if p['sources']:
-                                yield Label("Scientific Citations & PubMed Literature:", classes="input-label")
-                                for s in p['sources']:
-                                    yield Static(f"  - {s['title']} (PMID: {s['pmid']})\n    URL: {s['url']}", classes="source-link")
+                    yield Label("Loading reference database...", classes="info-title")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -402,6 +402,7 @@ class PeptideCalculatorApp(App):
         self.refresh_profiles()
         self.refresh_peptide_templates()
         self.refresh_patient_protocols_table()
+        self.populate_reference_tab()
         self.recalculate()
 
     def refresh_profiles(self) -> None:
@@ -413,8 +414,16 @@ class PeptideCalculatorApp(App):
         profile_select = self.query_one("#profile-select", Select)
         profile_select.set_options(options)
         
-        current_prof_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), profiles[0]["name"])
-        self.query_one("#calc-active-profile", Label).update(current_prof_name)
+        self.refresh_active_profile_display()
+
+    def refresh_active_profile_display(self) -> None:
+        profiles = db.get_profiles()
+        current_prof_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), "Unknown")
+        try:
+            self.query_one("#calc-active-profile", Label).update(current_prof_name)
+        except Exception:
+            pass
+        self.refresh_patient_protocols_table()
 
     def refresh_peptide_templates(self) -> None:
         peptides = db.get_peptides()
@@ -444,14 +453,27 @@ class PeptideCalculatorApp(App):
                 p['updated_at'][:10]
             )
 
+    def populate_reference_tab(self) -> None:
+        container = self.query_one("#reference-scroll-container", ScrollableContainer)
+        container.remove_children()
+        
+        peptides = db.get_peptides()
+        for p in peptides:
+            children = [
+                Label(f"🔬 {p['name']} Reference & Clinical Guidelines", classes="info-title"),
+                Static(f"• Standard Vial: {p['vial_mg']} mg | Recommended BAC Water: {p['water_ml']} mL\n• Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
+            ]
+            if p['sources']:
+                children.append(Label("Scientific Citations & PubMed Literature:", classes="input-label"))
+                for s in p['sources']:
+                    cite_md = f"  - {s['title']} (PMID: {s['pmid']})\n    URL: {s['url']}"
+                    children.append(Static(cite_md, classes="source-link"))
+                    
+            sec = Vertical(*children, classes="info-section")
+            container.mount(sec)
+
     def watch_active_profile_id(self, old_val: int, new_val: int) -> None:
-        profiles = db.get_profiles()
-        current_prof_name = next((p["name"] for p in profiles if p["id"] == new_val), "Unknown")
-        try:
-            self.query_one("#calc-active-profile", Label).update(current_prof_name)
-            self.refresh_patient_protocols_table()
-        except Exception:
-            pass
+        self.refresh_active_profile_display()
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if not event.value or event.value == Select.BLANK:
@@ -474,7 +496,9 @@ class PeptideCalculatorApp(App):
             self.dose_unit = str(event.value)
         elif event.select.id == "profile-select":
             try:
-                self.active_profile_id = int(str(event.value))
+                val = int(str(event.value))
+                self.active_profile_id = val
+                self.refresh_active_profile_display()
             except (ValueError, TypeError):
                 pass
             
