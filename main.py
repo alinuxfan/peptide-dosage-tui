@@ -19,36 +19,32 @@ from textual.reactive import reactive
 
 import db
 
-# ASCII syringe drawing helper
+# Compact ASCII syringe drawing helper
 def make_syringe_display(units: float) -> str:
     if units <= 0:
         filled = 0
     elif units > 100:
-        filled = 50  # Cap at 100 units visually
+        filled = 40  # Cap at 100 units visually
     else:
-        filled = int(round(units / 2.0))  # 50 character width (2 units per char)
+        filled = int(round((units / 100.0) * 40.0))  # 40 character width
         
-    empty = 50 - filled
+    empty = 40 - filled
     
-    # Plunger stick is '=', plunger rubber tip is '█', liquid is '░', empty is '.'
     stick_len = max(0, filled - 1)
     stick = "=" * stick_len
     rubber = "█" if filled > 0 else ""
     liquid = "░" * max(0, filled - stick_len - 1)
     barrel_content = f"{stick}{rubber}{liquid}{'.' * empty}"
     
-    top_line = "            0   10   20   30   40   50   60   70   80   90  100 Units"
-    mid_line = f" Needle ───┨ {barrel_content} ┠──══════ Plunger"
+    top_line = "           0  20  40  60  80 100 Units"
+    mid_line = f"Needle ──┨ {barrel_content} ┠─════ Plunger"
     
-    marker_pos = 13 + filled
-    bottom_line = " " * marker_pos + "▲"
-    text_line = " " * max(0, marker_pos - 5) + f"{units:.1f} Units"
-    
-    warning_text = ""
+    marker_pos = 11 + filled
+    bottom_line = " " * marker_pos + f"▲ {units:.1f}U"
     if units > 100:
-        warning_text = "   [!] EXCEEDS 1.0mL SYRINGE CAPACITY!"
+        bottom_line += " [!] EXCEEDS 1mL CAPACITY"
         
-    return f"{top_line}\n{mid_line}\n{bottom_line}\n{text_line}{warning_text}"
+    return f"{top_line}\n{mid_line}\n{bottom_line}"
 
 
 CSS = """
@@ -61,65 +57,74 @@ Header {
     background: #1e293b;
     color: #38bdf8;
     text-align: center;
-    height: 3;
+    height: 1;
     border-bottom: solid #38bdf8;
 }
 
 Footer {
     background: #1e293b;
     color: #94a3b8;
+    height: 1;
 }
 
 TabbedContent {
-    margin-top: 1;
+    margin-top: 0;
+    height: 1fr;
+}
+
+TabPane {
+    padding: 0;
+    height: 1fr;
 }
 
 .pane-container {
     layout: grid;
     grid-size: 2;
     grid-columns: 1fr 1fr;
-    grid-gutter: 2;
-    padding: 1 2;
+    grid-gutter: 1;
+    padding: 0 1;
+    height: 1fr;
 }
 
 .sidebar-panel {
     background: #1e293b;
     border: solid #334155;
-    padding: 1 2;
+    padding: 0 1;
+    height: 1fr;
 }
 
 .results-panel {
     background: #1e293b;
     border: solid #334155;
-    padding: 1 2;
+    padding: 0 1;
     layout: vertical;
+    height: 1fr;
 }
 
 .title-label {
     color: #38bdf8;
     text-style: bold;
-    margin-bottom: 1;
+    margin-bottom: 0;
     border-bottom: solid #334155;
-    padding-bottom: 1;
 }
 
 .input-label {
     text-style: bold;
-    margin-top: 1;
+    margin-top: 0;
     color: #cbd5e1;
 }
 
 .preset-row {
     layout: horizontal;
-    height: 3;
-    margin-bottom: 1;
-    margin-top: 1;
+    height: 2;
+    margin-bottom: 0;
+    margin-top: 0;
 }
 
 .preset-row Button {
     margin-right: 1;
-    min-width: 6;
-    height: 3;
+    min-width: 5;
+    height: 1;
     background: #334155;
     color: #f1f5f9;
 }
@@ -132,33 +137,27 @@ Input {
     background: #0f172a;
     border: solid #475569;
     color: #f1f5f9;
-    margin-bottom: 1;
-}
-
-Input:focus {
-    border: double #38bdf8;
+    margin-bottom: 0;
+    height: 3;
 }
 
 Select {
     background: #0f172a;
     border: solid #475569;
     color: #f1f5f9;
-    margin-bottom: 1;
-}
-
-Select:focus {
-    border: double #38bdf8;
+    margin-bottom: 0;
+    height: 3;
 }
 
 .result-row {
     layout: horizontal;
-    height: 3;
+    height: 2;
     content-align: left middle;
     border-bottom: solid #334155;
 }
 
 .result-label {
-    width: 25;
+    width: 24;
     text-style: bold;
     color: #94a3b8;
 }
@@ -171,26 +170,26 @@ Select:focus {
 #syringe-visual {
     background: #0f172a;
     border: double #38bdf8;
-    padding: 1;
-    margin-top: 1;
-    margin-bottom: 1;
-    height: 9;
+    padding: 0 1;
+    margin-top: 0;
+    margin-bottom: 0;
+    height: 5;
     color: #38bdf8;
 }
 
 .help-box {
     background: #1e293b;
     border: solid #334155;
-    padding: 1;
-    margin-top: 1;
+    padding: 0 1;
+    margin-top: 0;
     color: #94a3b8;
 }
 
 .action-bar {
     layout: horizontal;
-    height: 5;
+    height: 3;
     align: right middle;
-    padding: 1 2;
+    padding: 0 1;
     background: #1e293b;
     border-bottom: solid #334155;
 }
@@ -204,30 +203,31 @@ DataTable {
     height: 1fr;
     border: solid #334155;
     background: #0f172a;
-    margin: 1 2;
+    margin: 0 1;
 }
 
 .info-pane {
-    padding: 1 2;
+    padding: 0 1;
     layout: vertical;
+    height: 1fr;
 }
 
 .info-section {
     background: #1e293b;
     border: solid #334155;
-    padding: 1 2;
+    padding: 0 1;
     margin-bottom: 1;
 }
 
 .info-title {
     color: #38bdf8;
     text-style: bold;
-    margin-bottom: 1;
+    margin-bottom: 0;
 }
 
 .info-text {
     color: #cbd5e1;
-    margin-bottom: 1;
+    margin-bottom: 0;
 }
 
 .source-link {
@@ -239,41 +239,44 @@ DataTable {
     background: #38bdf8;
     color: #0f172a;
     text-style: bold;
-    margin-top: 1;
+    margin-top: 0;
+    height: 3;
 }
 
 #save-schedule-btn, #export-patient-sheet-btn {
     background: #10b981;
     color: #0f172a;
     text-style: bold;
-    min-width: 25;
+    min-width: 22;
     margin-left: 1;
+    height: 3;
 }
 
 #add-profile-btn {
     background: #38bdf8;
     color: #0f172a;
     text-style: bold;
-    min-width: 15;
+    min-width: 14;
     margin-left: 1;
+    height: 3;
 }
 
 #delete-protocol-btn {
     background: #f43f5e;
     color: #ffffff;
     text-style: bold;
-    min-width: 20;
+    min-width: 18;
     margin-left: 1;
+    height: 3;
 }
 """
 
 
 class PeptideCalculatorApp(App):
-    TITLE = "Peptide Dosage, Tracker & Reconstitution TUI"
+    TITLE = "Peptide Dosage & Reconstitution TUI"
     SUB_TITLE = "Multi-Person Protocol Tracker with Scientific Citations"
     CSS = CSS
 
-    # Reactive variables
     active_profile_id = reactive(1)
     peptide = reactive("Custom / Other")
     vial_mg = reactive(5.0)
@@ -282,12 +285,13 @@ class PeptideCalculatorApp(App):
     dose_unit = reactive("mcg")
 
     def compose(self) -> ComposeResult:
+        db.init_db()
         yield Header()
         with TabbedContent():
             with TabPane("Calculator & Syringe Visualizer"):
                 with Grid(classes="pane-container"):
-                    # Left Sidebar: Inputs
-                    with Vertical(classes="sidebar-panel"):
+                    # Left Sidebar: Inputs in Scrollable Container
+                    with ScrollableContainer(classes="sidebar-panel"):
                         yield Label("PEPTIDE CONFIGURATION", classes="title-label")
                         
                         yield Label("Select Peptide Template:", classes="input-label")
@@ -314,8 +318,8 @@ class PeptideCalculatorApp(App):
                             yield Button("3mL", id="water-btn-3")
                         yield Input(value="2.0", placeholder="Enter mL...", id="water-input")
                         yield Label(
-                            "Guidelines: GLP-1s/2s/3s: 2mL-3mL | Peptides: 3mL\n"
-                            "Note: Higher water = lower concentration, making small doses easier to draw.",
+                            "GLP-1/2/3: 2mL-3mL | Peptides: 3mL\n"
+                            "Higher water = lower conc, making small doses easier to draw.",
                             classes="help-box"
                         )
                         
@@ -330,8 +334,8 @@ class PeptideCalculatorApp(App):
                         
                         yield Button("💾 Save Protocol to Active Profile", id="save-profile-protocol-btn")
 
-                    # Right Panel: Output & Visualizer
-                    with Vertical(classes="results-panel"):
+                    # Right Panel: Output & Visualizer in Scrollable Container
+                    with ScrollableContainer(classes="results-panel"):
                         yield Label("DILUTION & CALCULATED DOSES", classes="title-label")
                         
                         with Horizontal(classes="result-row"):
@@ -377,24 +381,26 @@ class PeptideCalculatorApp(App):
 
             with TabPane("Peptide Reference & Cited Sources"):
                 with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
-                    yield Label("Loading cited peptide database...", id="ref-loading-label")
+                    for p in db.get_peptides():
+                        with Vertical(classes="info-section"):
+                            yield Label(f"{p['name']} Reference & Literature", classes="info-title")
+                            yield Label(f"• Standard Vial: {p['vial_mg']} mg | Dilution: {p['water_ml']} mL | Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
+                            if p['sources']:
+                                yield Label("Scientific Citations & PubMed Links:", classes="input-label")
+                                for s in p['sources']:
+                                    yield Label(f"  - {s['title']} (PMID: {s['pmid']})\n    Link: {s['url']}", classes="source-link")
         yield Footer()
 
     def on_mount(self) -> None:
-        db.init_db()
-        
-        # Setup tables
         sched_table = self.query_one("#schedule-table", DataTable)
         sched_table.add_columns("Phase / Week", "Dose", "Volume (mL)", "Syringe Draw (Units)", "Est. Doses per Vial")
         
         patient_table = self.query_one("#patient-protocols-table", DataTable)
         patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Last Updated")
         
-        # Load profile options into dropdowns
         self.refresh_profiles()
         self.refresh_peptide_templates()
         self.refresh_patient_protocols_table()
-        self.populate_reference_tab()
         self.recalculate()
 
     def refresh_profiles(self) -> None:
@@ -406,7 +412,6 @@ class PeptideCalculatorApp(App):
         profile_select = self.query_one("#profile-select", Select)
         profile_select.set_options(options)
         
-        # Set active profile label in calc tab
         current_prof_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), profiles[0]["name"])
         self.query_one("#calc-active-profile", Label).update(current_prof_name)
 
@@ -437,25 +442,6 @@ class PeptideCalculatorApp(App):
                 p['frequency'],
                 p['updated_at'][:10]
             )
-
-    def populate_reference_tab(self) -> None:
-        container = self.query_one("#reference-scroll-container", ScrollableContainer)
-        container.remove_children()
-        
-        peptides = db.get_peptides()
-        for p in peptides:
-            children = [
-                Label(f"{p['name']} Reference & Literature", classes="info-title"),
-                Label(f"• Standard Vial: {p['vial_mg']} mg | Dilution: {p['water_ml']} mL | Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
-            ]
-            if p['sources']:
-                children.append(Label("Scientific Citations & PubMed Links:", classes="input-label"))
-                for s in p['sources']:
-                    cite_text = f"  - {s['title']} (PMID: {s['pmid']})\n    Link: {s['url']}"
-                    children.append(Label(cite_text, classes="source-link"))
-                    
-            sec = Vertical(*children, classes="info-section")
-            container.mount(sec)
 
     def watch_active_profile_id(self, old_val: int, new_val: int) -> None:
         profiles = db.get_profiles()
@@ -584,7 +570,6 @@ class PeptideCalculatorApp(App):
     def delete_selected_patient_protocol(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
         if table.cursor_row is not None and table.row_count > 0:
-            row_key = table.coordinate_to_cell_key((table.cursor_row, 0))
             protocol_id_str = table.get_cell_at((table.cursor_row, 0))
             try:
                 db.delete_user_protocol(int(protocol_id_str))
@@ -621,7 +606,7 @@ class PeptideCalculatorApp(App):
             self.query_one("#calc-dose-volume", Label).update(f"{draw_volume_ml:.3f} mL")
             
             if syringe_units > 100.0:
-                self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units [bold red](Exceeds Syringe Capacity!)[/]")
+                self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units [bold red](Exceeds Capacity!)[/]")
             else:
                 self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units")
                 
