@@ -17,170 +17,7 @@ from textual.widgets import (
 )
 from textual.reactive import reactive
 
-# Common peptide database with defaults for auto-filling and scheduling
-PEPTIDE_DEFAULTS = {
-    "BPC-157": {
-        "vial_mg": 5.0,
-        "water_ml": 2.0,
-        "dose": 250.0,
-        "unit": "mcg",
-        "freq": "daily",
-        "notes": "Commonly used for joint/tendon healing. Standard dose: 250mcg - 500mcg daily or twice daily.",
-        "schedule": [
-            ("Week 1-2", 250.0, "mcg"),
-            ("Week 3-4", 350.0, "mcg"),
-            ("Week 5-6", 500.0, "mcg"),
-        ]
-    },
-    "Ipamorelin": {
-        "vial_mg": 5.0,
-        "water_ml": 2.5,
-        "dose": 200.0,
-        "unit": "mcg",
-        "freq": "daily (before bed)",
-        "notes": "Growth hormone secretagogue. Standard dose: 200mcg - 300mcg daily, 5 days on / 2 days off.",
-        "schedule": [
-            ("Week 1-4", 200.0, "mcg"),
-            ("Week 5-8", 250.0, "mcg"),
-            ("Week 9-12", 300.0, "mcg"),
-        ]
-    },
-    "CJC-1295": {
-        "vial_mg": 2.0,
-        "water_ml": 2.0,
-        "dose": 100.0,
-        "unit": "mcg",
-        "freq": "daily",
-        "notes": "Often combined with Ipamorelin. Standard dose: 100mcg - 150mcg, 1-3 times daily.",
-        "schedule": [
-            ("Week 1-8", 100.0, "mcg"),
-        ]
-    },
-    "Semaglutide": {
-        "vial_mg": 5.0,
-        "water_ml": 2.0,
-        "dose": 0.25,
-        "unit": "mg",
-        "freq": "weekly",
-        "notes": "GLP-1 receptor agonist. Standard titration starts at 0.25mg weekly for 4 weeks.",
-        "schedule": [
-            ("Week 1-4 (Titration)", 0.25, "mg"),
-            ("Week 5-8 (Titration)", 0.50, "mg"),
-            ("Week 9-12 (Titration)", 1.00, "mg"),
-            ("Week 13-16 (Titration)", 1.70, "mg"),
-            ("Week 17+ (Maintenance)", 2.40, "mg"),
-        ]
-    },
-    "Tirzepatide": {
-        "vial_mg": 10.0,
-        "water_ml": 2.0,
-        "dose": 2.5,
-        "unit": "mg",
-        "freq": "weekly",
-        "notes": "GIP/GLP-1 receptor agonist (often referred to as GLP-2 dual agonist). Titrated monthly.",
-        "schedule": [
-            ("Week 1-4 (Titration)", 2.5, "mg"),
-            ("Week 5-8 (Titration)", 5.0, "mg"),
-            ("Week 9-12 (Titration)", 7.5, "mg"),
-            ("Week 13-16 (Titration)", 10.0, "mg"),
-            ("Week 17-20 (Titration)", 12.5, "mg"),
-            ("Week 21+ (Maintenance)", 15.0, "mg"),
-        ]
-    },
-    "Retatrutide": {
-        "vial_mg": 5.0,
-        "water_ml": 2.0,
-        "dose": 2.0,
-        "unit": "mg",
-        "freq": "weekly",
-        "notes": "GLP-1/GIP/GCGR triple agonist (GLP-3). Standard titration starts at 2mg weekly.",
-        "schedule": [
-            ("Week 1-4 (Titration)", 2.0, "mg"),
-            ("Week 5-8 (Titration)", 4.0, "mg"),
-            ("Week 9-12 (Titration)", 8.0, "mg"),
-            ("Week 13+ (Maintenance)", 12.0, "mg"),
-        ]
-    },
-    "MOTS-c": {
-        "vial_mg": 10.0,
-        "water_ml": 2.0,
-        "dose": 5.0,
-        "unit": "mg",
-        "freq": "3x weekly",
-        "notes": "Mitochondria-derived peptide. Dosed 5mg three times weekly (e.g. Mon/Wed/Fri) for 4-6 weeks.",
-        "schedule": [
-            ("Week 1-4 (Active)", 5.0, "mg"),
-        ]
-    },
-    "GLOW Blend": {
-        "vial_mg": 50.0,
-        "water_ml": 3.0,
-        "dose": 1.5,
-        "unit": "mg",
-        "freq": "daily",
-        "notes": "Cosmetic cellular renewal blend containing GHK-Cu, BPC-157, and TB-500.",
-        "schedule": [
-            ("Week 1-4 (Daily)", 1.5, "mg"),
-        ]
-    },
-    "KLOW Blend": {
-        "vial_mg": 50.0,
-        "water_ml": 3.0,
-        "dose": 1.5,
-        "unit": "mg",
-        "freq": "daily",
-        "notes": "Anti-inflammatory and skin/hair recovery blend containing GHK-Cu, BPC-157, TB-500, and KPV.",
-        "schedule": [
-            ("Week 1-4 (Daily)", 1.5, "mg"),
-        ]
-    },
-    "Sermorelin": {
-        "vial_mg": 5.0,
-        "water_ml": 2.5,
-        "dose": 300.0,
-        "unit": "mcg",
-        "freq": "daily",
-        "notes": "GHRH analogue promoting natural GH release. Typically injected nightly.",
-        "schedule": [
-            ("Week 1-12 (Nightly)", 300.0, "mcg"),
-        ]
-    },
-    "AOD-9604": {
-        "vial_mg": 5.0,
-        "water_ml": 2.0,
-        "dose": 300.0,
-        "unit": "mcg",
-        "freq": "daily",
-        "notes": "Anti-obesity peptide fragment. Administered in the morning on an empty stomach.",
-        "schedule": [
-            ("Week 1-12 (Morning)", 300.0, "mcg"),
-        ]
-    },
-    "NAD+": {
-        "vial_mg": 500.0,
-        "water_ml": 5.0,
-        "dose": 50.0,
-        "unit": "mg",
-        "freq": "twice weekly",
-        "notes": "Nicotinamide Adenine Dinucleotide. Reconstituted at 100mg/mL. Subcutaneous injection.",
-        "schedule": [
-            ("Week 1-2 (Starting)", 25.0, "mg"),
-            ("Week 3-4 (Target)", 50.0, "mg"),
-            ("Week 5+ (Maintenance)", 100.0, "mg"),
-        ]
-    },
-    "Custom / Other": {
-        "vial_mg": 5.0,
-        "water_ml": 2.0,
-        "dose": 250.0,
-        "unit": "mcg",
-        "freq": "daily",
-        "notes": "Enter custom values below to calculate dilution and syringe markings.",
-        "schedule": [
-            ("Week 1-4", 250.0, "mcg")
-        ]
-    }
-}
+import db
 
 # ASCII syringe drawing helper
 def make_syringe_display(units: float) -> str:
@@ -200,11 +37,9 @@ def make_syringe_display(units: float) -> str:
     liquid = "░" * max(0, filled - stick_len - 1)
     barrel_content = f"{stick}{rubber}{liquid}{'.' * empty}"
     
-    # Ticks and barrel outlines
     top_line = "            0   10   20   30   40   50   60   70   80   90  100 Units"
     mid_line = f" Needle ───┨ {barrel_content} ┠──══════ Plunger"
     
-    # Plunger indicator arrow
     marker_pos = 13 + filled
     bottom_line = " " * marker_pos + "▲"
     text_line = " " * max(0, marker_pos - 5) + f"{units:.1f} Units"
@@ -351,7 +186,7 @@ Select:focus {
     color: #94a3b8;
 }
 
-.schedule-header {
+.action-bar {
     layout: horizontal;
     height: 5;
     align: right middle;
@@ -360,7 +195,7 @@ Select:focus {
     border-bottom: solid #334155;
 }
 
-.schedule-title {
+.action-title {
     color: #38bdf8;
     text-style: bold;
 }
@@ -395,25 +230,51 @@ DataTable {
     margin-bottom: 1;
 }
 
-#save-schedule-btn {
+.source-link {
+    color: #38bdf8;
+    margin-left: 2;
+}
+
+#save-profile-protocol-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    text-style: bold;
+    margin-top: 1;
+}
+
+#save-schedule-btn, #export-patient-sheet-btn {
     background: #10b981;
     color: #0f172a;
     text-style: bold;
     min-width: 25;
+    margin-left: 1;
 }
 
-#save-schedule-btn:hover {
-    background: #059669;
+#add-profile-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    text-style: bold;
+    min-width: 15;
+    margin-left: 1;
+}
+
+#delete-protocol-btn {
+    background: #f43f5e;
+    color: #ffffff;
+    text-style: bold;
+    min-width: 20;
+    margin-left: 1;
 }
 """
 
 
 class PeptideCalculatorApp(App):
-    TITLE = "Peptide Dosage & Reconstitution TUI"
-    SUB_TITLE = "Calculate dilutions, doses, and syringe draws accurately"
+    TITLE = "Peptide Dosage, Tracker & Reconstitution TUI"
+    SUB_TITLE = "Multi-Person Protocol Tracker with Scientific Citations"
     CSS = CSS
 
-    # Reactive variables for calculation state
+    # Reactive variables
+    active_profile_id = reactive(1)
     peptide = reactive("Custom / Other")
     vial_mg = reactive(5.0)
     water_ml = reactive(2.0)
@@ -431,7 +292,7 @@ class PeptideCalculatorApp(App):
                         
                         yield Label("Select Peptide Template:", classes="input-label")
                         yield Select(
-                            options=[(name, name) for name in PEPTIDE_DEFAULTS.keys()],
+                            options=[("Custom / Other", "Custom / Other")],
                             value="Custom / Other",
                             id="peptide-select"
                         )
@@ -453,7 +314,7 @@ class PeptideCalculatorApp(App):
                             yield Button("3mL", id="water-btn-3")
                         yield Input(value="2.0", placeholder="Enter mL...", id="water-input")
                         yield Label(
-                            "Guidelines: GLP-1s: 2mL-3mL | Peptides: 3mL\n"
+                            "Guidelines: GLP-1s/2s/3s: 2mL-3mL | Peptides: 3mL\n"
                             "Note: Higher water = lower concentration, making small doses easier to draw.",
                             classes="help-box"
                         )
@@ -466,11 +327,17 @@ class PeptideCalculatorApp(App):
                             value="mcg",
                             id="dose-unit-select"
                         )
+                        
+                        yield Button("💾 Save Protocol to Active Profile", id="save-profile-protocol-btn")
 
                     # Right Panel: Output & Visualizer
                     with Vertical(classes="results-panel"):
                         yield Label("DILUTION & CALCULATED DOSES", classes="title-label")
                         
+                        with Horizontal(classes="result-row"):
+                            yield Label("Active Profile:", classes="result-label")
+                            yield Label("Default User", id="calc-active-profile", classes="result-val highlight-val")
+
                         with Horizontal(classes="result-row"):
                             yield Label("Solution Concentration:", classes="result-label")
                             yield Label("Enter valid inputs...", id="calc-concentration", classes="result-val")
@@ -489,102 +356,140 @@ class PeptideCalculatorApp(App):
                         
                         yield Label("INSULIN SYRINGE DRAW VISUALIZER (U-100 Syringe)", classes="title-label")
                         yield Label("  Syringe representation will appear here when inputs are valid.", id="syringe-visual")
-                        
-                        yield Label(
-                            "Safety Warning:\n"
-                            "Always inject BAC water slowly down the vial side. Do not shake. Gently swirl.\n"
-                            "Keep reconstituted peptides refrigerated. Protect from light.",
-                            classes="help-box"
-                        )
+
+            with TabPane("Patient Tracker (Multi-Person)"):
+                with Vertical():
+                    with Container(classes="action-bar"):
+                        yield Label("Active Person Profile:", classes="action-title")
+                        yield Select(options=[("Default User", "1")], value="1", id="profile-select")
+                        yield Input(placeholder="New person name...", id="new-profile-input")
+                        yield Button("+ Add Profile", id="add-profile-btn")
+                        yield Button("Export Patient Reference Sheet", id="export-patient-sheet-btn")
+                        yield Button("Remove Selected Protocol", id="delete-protocol-btn")
+                    yield DataTable(id="patient-protocols-table")
 
             with TabPane("Dosing Schedule Planner"):
                 with Vertical():
-                    with Container(classes="schedule-header"):
-                        yield Label("Dosing Schedule Planner & Exporter", classes="schedule-title")
+                    with Container(classes="action-bar"):
+                        yield Label("Peptide Titration Schedule Planner & Exporter", classes="action-title")
                         yield Button("Save Schedule to File", id="save-schedule-btn")
                     yield DataTable(id="schedule-table")
 
-            with TabPane("Peptide Reference & Tips"):
-                with ScrollableContainer(classes="info-pane"):
-                    with Vertical(classes="info-section"):
-                        yield Label("BPC-157 & TB-500 (Healing & Recovery)", classes="info-title")
-                        yield Label(
-                            "• BPC-157 Typical Dose: 250 mcg to 500 mcg, once or twice daily.\n"
-                            "• TB-500 Typical Dose: 2 mg to 5 mg, once or twice weekly.\n"
-                            "• Reconstitution: 2.0 mL to 3.0 mL of BAC water. Inject slowly down vial wall.\n"
-                            "• Storage: Refrigerate after reconstitution. Valid for ~30 days.",
-                            classes="info-text"
-                        )
-                    with Vertical(classes="info-section"):
-                        yield Label("Ipamorelin & CJC-1295 (GH Secretagogues)", classes="info-title")
-                        yield Label(
-                            "• CJC-1295 Standard Dose: 100 mcg to 150 mcg daily (before bed or morning).\n"
-                            "• Ipamorelin Standard Dose: 200 mcg to 300 mcg daily.\n"
-                            "• Synergy: Often combined in a 1:1 or 1:2 ratio. Standard cycle: 8-12 weeks.\n"
-                            "• Reconstitution: 2.0 mL to 2.5 mL per 5mg vial.",
-                            classes="info-text"
-                        )
-                    with Vertical(classes="info-section"):
-                        yield Label("GLP-1s, GLP-2s, and GLP-3s (Semaglutide, Tirzepatide, Retatrutide)", classes="info-title")
-                        yield Label(
-                            "• Semaglutide (GLP-1): Weekly titration starting at 0.25mg (Weeks 1-4) up to 2.4mg.\n"
-                            "• Tirzepatide (GLP-1/GIP): Weekly titration starting at 2.5mg (Weeks 1-4) up to 15mg.\n"
-                            "• Retatrutide (GLP-1/GIP/GCGR Triple Agonist): Weekly titration starting at 2.0mg (Weeks 1-4) up to 12mg.\n"
-                            "• Reconstitution: 2.0 mL to 3.0 mL BAC water per vial to ensure comfortable syringe draws.",
-                            classes="info-text"
-                        )
-                    with Vertical(classes="info-section"):
-                        yield Label("MOTS-c & NAD+ (Cellular Health & Mitochondrial Support)", classes="info-title")
-                        yield Label(
-                            "• MOTS-c: 5 mg to 10 mg twice or three times weekly (usually 5mg 3x a week for 4-6 weeks).\n"
-                            "• NAD+: 25 mg to 100 mg subcutaneous injection twice or three times weekly.\n"
-                            "• Reconstitution: MOTS-c 2.0 mL per 10mg vial. NAD+ 5.0 mL BAC water per 500mg vial (100mg/mL).",
-                            classes="info-text"
-                        )
-                    with Vertical(classes="info-section"):
-                        yield Label("GLOW & KLOW Blends (Anti-aging & Cellular Repair)", classes="info-title")
-                        yield Label(
-                            "• GLOW: Blend of GHK-Cu, BPC-157, TB-500. Standard dose is 1.5mg daily (based on GHK-Cu weight).\n"
-                            "• KLOW: Adds anti-inflammatory KPV to GHK-Cu, BPC-157, and TB-500. Standard dose is 1.5mg daily.\n"
-                            "• Reconstitution: 3.0 mL BAC water per 50mg vial. Higher water volumes reduce the standard GHK-Cu injection site sting.",
-                            classes="info-text"
-                        )
-                    with Vertical(classes="info-section"):
-                        yield Label("Sermorelin & AOD-9604 (Growth Hormone & Fat Metabolism)", classes="info-title")
-                        yield Label(
-                            "• Sermorelin: 300 mcg daily subcutaneous injection, administered nightly before sleep.\n"
-                            "• AOD-9604: 300 mcg daily subcutaneous injection, administered in the morning on an empty stomach.\n"
-                            "• Reconstitution: Sermorelin 2.5 mL per 5mg vial. AOD-9604 2.0 mL per 5mg vial.",
-                            classes="info-text"
-                        )
+            with TabPane("Peptide Reference & Cited Sources"):
+                with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
+                    yield Label("Loading cited peptide database...", id="ref-loading-label")
         yield Footer()
 
     def on_mount(self) -> None:
-        # Initialize schedule table headers
-        table = self.query_one("#schedule-table", DataTable)
-        table.add_columns("Phase / Week", "Dose", "Volume (mL)", "Syringe Draw (Units)", "Est. Doses per Vial")
+        db.init_db()
         
-        # Initial run of calculations
+        # Setup tables
+        sched_table = self.query_one("#schedule-table", DataTable)
+        sched_table.add_columns("Phase / Week", "Dose", "Volume (mL)", "Syringe Draw (Units)", "Est. Doses per Vial")
+        
+        patient_table = self.query_one("#patient-protocols-table", DataTable)
+        patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Last Updated")
+        
+        # Load profile options into dropdowns
+        self.refresh_profiles()
+        self.refresh_peptide_templates()
+        self.refresh_patient_protocols_table()
+        self.populate_reference_tab()
         self.recalculate()
-        self.update_schedule_table()
+
+    def refresh_profiles(self) -> None:
+        profiles = db.get_profiles()
+        if not profiles:
+            return
+        options = [(p["name"], str(p["id"])) for p in profiles]
+        
+        profile_select = self.query_one("#profile-select", Select)
+        profile_select.set_options(options)
+        
+        # Set active profile label in calc tab
+        current_prof_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), profiles[0]["name"])
+        self.query_one("#calc-active-profile", Label).update(current_prof_name)
+
+    def refresh_peptide_templates(self) -> None:
+        peptides = db.get_peptides()
+        options = [(p["name"], p["name"]) for p in peptides]
+        peptide_select = self.query_one("#peptide-select", Select)
+        peptide_select.set_options(options)
+
+    def refresh_patient_protocols_table(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        table.clear()
+        
+        protocols = db.get_user_protocols(self.active_profile_id)
+        for p in protocols:
+            conc = p['vial_mg'] / p['water_ml'] if p['water_ml'] > 0 else 0
+            dose_mg = p['target_dose'] / 1000.0 if p['dose_unit'] == 'mcg' else p['target_dose']
+            vol_ml = dose_mg / conc if conc > 0 else 0
+            units = vol_ml * 100.0
+            
+            table.add_row(
+                str(p['id']),
+                p['peptide_name'],
+                f"{p['vial_mg']:.1f} mg",
+                f"{p['water_ml']:.1f} mL",
+                f"{p['target_dose']} {p['dose_unit']}",
+                f"{units:.1f} Units",
+                p['frequency'],
+                p['updated_at'][:10]
+            )
+
+    def populate_reference_tab(self) -> None:
+        container = self.query_one("#reference-scroll-container", ScrollableContainer)
+        container.remove_children()
+        
+        peptides = db.get_peptides()
+        for p in peptides:
+            children = [
+                Label(f"{p['name']} Reference & Literature", classes="info-title"),
+                Label(f"• Standard Vial: {p['vial_mg']} mg | Dilution: {p['water_ml']} mL | Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
+            ]
+            if p['sources']:
+                children.append(Label("Scientific Citations & PubMed Links:", classes="input-label"))
+                for s in p['sources']:
+                    cite_text = f"  - {s['title']} (PMID: {s['pmid']})\n    Link: {s['url']}"
+                    children.append(Label(cite_text, classes="source-link"))
+                    
+            sec = Vertical(*children, classes="info-section")
+            container.mount(sec)
+
+    def watch_active_profile_id(self, old_val: int, new_val: int) -> None:
+        profiles = db.get_profiles()
+        current_prof_name = next((p["name"] for p in profiles if p["id"] == new_val), "Unknown")
+        try:
+            self.query_one("#calc-active-profile", Label).update(current_prof_name)
+            self.refresh_patient_protocols_table()
+        except Exception:
+            pass
 
     def on_select_changed(self, event: Select.Changed) -> None:
+        if not event.value or event.value == Select.BLANK:
+            return
+            
         if event.select.id == "peptide-select":
             self.peptide = str(event.value)
-            if self.peptide in PEPTIDE_DEFAULTS:
-                defaults = PEPTIDE_DEFAULTS[self.peptide]
-                self.query_one("#vial-size-input", Input).value = f"{defaults['vial_mg']}"
-                self.query_one("#water-input", Input).value = f"{defaults['water_ml']}"
-                self.query_one("#dose-input", Input).value = f"{defaults['dose']}"
-                self.query_one("#dose-unit-select", Select).value = defaults["unit"]
+            p = db.get_peptide_by_name(self.peptide)
+            if p:
+                self.query_one("#vial-size-input", Input).value = f"{p['vial_mg']}"
+                self.query_one("#water-input", Input).value = f"{p['water_ml']}"
+                self.query_one("#dose-input", Input).value = f"{p['dose']}"
+                self.query_one("#dose-unit-select", Select).value = p["unit"]
                 
-                # Update reactive variables directly in case input change fails to trigger
-                self.vial_mg = defaults['vial_mg']
-                self.water_ml = defaults['water_ml']
-                self.target_dose = defaults['dose']
-                self.dose_unit = defaults['unit']
+                self.vial_mg = p['vial_mg']
+                self.water_ml = p['water_ml']
+                self.target_dose = p['dose']
+                self.dose_unit = p['unit']
         elif event.select.id == "dose-unit-select":
             self.dose_unit = str(event.value)
+        elif event.select.id == "profile-select":
+            try:
+                self.active_profile_id = int(str(event.value))
+            except (ValueError, TypeError):
+                pass
             
         self.recalculate()
         self.update_schedule_table()
@@ -599,7 +504,6 @@ class PeptideCalculatorApp(App):
             elif event.input.id == "dose-input":
                 self.target_dose = val
         except ValueError:
-            # Ignore intermediate parsing errors when user is typing
             pass
             
         self.recalculate()
@@ -619,11 +523,77 @@ class PeptideCalculatorApp(App):
             val_clean = val.replace("_", ".")
             self.query_one("#water-input", Input).value = val_clean
             self.water_ml = float(val_clean)
+        elif btn_id == "save-profile-protocol-btn":
+            self.save_current_to_profile()
+        elif btn_id == "add-profile-btn":
+            self.create_new_profile()
+        elif btn_id == "export-patient-sheet-btn":
+            self.export_patient_sheet()
+        elif btn_id == "delete-protocol-btn":
+            self.delete_selected_patient_protocol()
         elif btn_id == "save-schedule-btn":
             self.save_schedule_to_file()
             
         self.recalculate()
         self.update_schedule_table()
+
+    def save_current_to_profile(self) -> None:
+        p = db.get_peptide_by_name(self.peptide)
+        freq = p["freq"] if p else "daily"
+        notes = p["notes"] if p else "User custom calculation"
+        sched = p["schedule"] if p else [("Custom", self.target_dose, self.dose_unit)]
+        sources = p["sources"] if p else []
+        
+        db.add_or_update_user_protocol(
+            self.active_profile_id,
+            self.peptide,
+            self.vial_mg,
+            self.water_ml,
+            self.target_dose,
+            self.dose_unit,
+            freq,
+            notes,
+            sched,
+            sources
+        )
+        self.refresh_patient_protocols_table()
+        self.notify(f"Saved {self.peptide} protocol to active profile!", timeout=3.0)
+
+    def create_new_profile(self) -> None:
+        input_widget = self.query_one("#new-profile-input", Input)
+        name = input_widget.value.strip()
+        if not name:
+            self.notify("Please enter a person name.", severity="error")
+            return
+        prof_id = db.add_profile(name)
+        if prof_id:
+            input_widget.value = ""
+            self.refresh_profiles()
+            self.active_profile_id = prof_id
+            self.notify(f"Created profile: {name}", timeout=3.0)
+        else:
+            self.notify("Profile name already exists.", severity="error")
+
+    def export_patient_sheet(self) -> None:
+        filename = db.export_person_reference_sheet(self.active_profile_id)
+        if filename:
+            self.notify(f"Exported patient summary to: {filename}", timeout=4.0)
+        else:
+            self.notify("Error exporting summary sheet.", severity="error")
+
+    def delete_selected_patient_protocol(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        if table.cursor_row is not None and table.row_count > 0:
+            row_key = table.coordinate_to_cell_key((table.cursor_row, 0))
+            protocol_id_str = table.get_cell_at((table.cursor_row, 0))
+            try:
+                db.delete_user_protocol(int(protocol_id_str))
+                self.refresh_patient_protocols_table()
+                self.notify("Removed protocol from patient profile.", timeout=3.0)
+            except Exception as e:
+                self.notify(f"Error deleting protocol: {e}", severity="error")
+        else:
+            self.notify("Select a row in the patient table to remove.", severity="warning")
 
     def recalculate(self) -> None:
         try:
@@ -640,42 +610,26 @@ class PeptideCalculatorApp(App):
                 self.query_one("#syringe-visual", Label).update("  Syringe representation will appear here when inputs are valid.")
                 return
 
-            # Calc concentration
             conc_mg_ml = vial_mg / water_ml
             conc_mcg_ml = conc_mg_ml * 1000.0
-
-            # Calc dose
-            if unit == "mcg":
-                dose_mg = dose / 1000.0
-            else:
-                dose_mg = dose
-
-            # Draw volume
+            dose_mg = dose / 1000.0 if unit == "mcg" else dose
             draw_volume_ml = dose_mg / conc_mg_ml
             syringe_units = draw_volume_ml * 100.0
-            doses_per_vial = vial_mg / dose_mg
+            doses_per_vial = vial_mg / dose_mg if dose_mg > 0 else 0
 
-            # Update fields
-            self.query_one("#calc-concentration", Label).update(
-                f"{conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL)"
-            )
+            self.query_one("#calc-concentration", Label).update(f"{conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL)")
             self.query_one("#calc-dose-volume", Label).update(f"{draw_volume_ml:.3f} mL")
             
             if syringe_units > 100.0:
-                self.query_one("#calc-syringe-draw", Label).update(
-                    f"{syringe_units:.1f} Units [bold red](Exceeds Syringe Capacity!)[/]"
-                )
+                self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units [bold red](Exceeds Syringe Capacity!)[/]")
             else:
                 self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units")
                 
             self.query_one("#calc-doses-per-vial", Label).update(f"{doses_per_vial:.1f} doses")
             
-            # Update visual syringe
             syringe_ascii = make_syringe_display(syringe_units)
             self.query_one("#syringe-visual", Label).update(syringe_ascii)
-            
-        except Exception as e:
-            # Prevent crashes if elements are not mounted yet
+        except Exception:
             pass
 
     def update_schedule_table(self) -> None:
@@ -683,42 +637,24 @@ class PeptideCalculatorApp(App):
             table = self.query_one("#schedule-table", DataTable)
             table.clear()
             
-            # Get schedule template based on selected peptide or default custom
-            peptide_name = self.peptide
             vial_mg = self.vial_mg
             water_ml = self.water_ml
-            
             if vial_mg <= 0 or water_ml <= 0:
                 return
                 
             conc_mg_ml = vial_mg / water_ml
-            
-            # If peptide is in defaults, retrieve its schedule, otherwise make a simple one
-            if peptide_name in PEPTIDE_DEFAULTS and peptide_name != "Custom / Other":
-                schedule_steps = PEPTIDE_DEFAULTS[peptide_name]["schedule"]
-            else:
-                schedule_steps = [("Custom Dose", self.target_dose, self.dose_unit)]
+            p = db.get_peptide_by_name(self.peptide)
+            schedule_steps = p["schedule"] if p and p["schedule"] else [("Custom Dose", self.target_dose, self.dose_unit)]
                 
             for phase, dose_val, unit in schedule_steps:
-                if unit == "mcg":
-                    dose_mg = dose_val / 1000.0
-                    dose_str = f"{dose_val:.0f} mcg"
-                else:
-                    dose_mg = dose_val
-                    dose_str = f"{dose_val:.2f} mg"
-                    
-                vol_ml = dose_mg / conc_mg_ml
+                dose_mg = dose_val / 1000.0 if unit == "mcg" else dose_val
+                dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
+                vol_ml = dose_mg / conc_mg_ml if conc_mg_ml > 0 else 0
                 units = vol_ml * 100.0
                 doses_per_vial = vial_mg / dose_mg if dose_mg > 0 else 0.0
                 
-                table.add_row(
-                    phase,
-                    dose_str,
-                    f"{vol_ml:.3f} mL",
-                    f"{units:.1f} Units",
-                    f"{doses_per_vial:.1f} doses"
-                )
-        except Exception as e:
+                table.add_row(phase, dose_str, f"{vol_ml:.3f} mL", f"{units:.1f} Units", f"{doses_per_vial:.1f} doses")
+        except Exception:
             pass
 
     def save_schedule_to_file(self) -> None:
@@ -726,22 +662,17 @@ class PeptideCalculatorApp(App):
             peptide_name = self.peptide
             vial_mg = self.vial_mg
             water_ml = self.water_ml
-            
             if vial_mg <= 0 or water_ml <= 0:
                 self.notify("Cannot save schedule: Invalid inputs.", severity="error")
                 return
                 
             conc_mg_ml = vial_mg / water_ml
             conc_mcg_ml = conc_mg_ml * 1000.0
-            
-            if peptide_name in PEPTIDE_DEFAULTS and peptide_name != "Custom / Other":
-                schedule_steps = PEPTIDE_DEFAULTS[peptide_name]["schedule"]
-                notes = PEPTIDE_DEFAULTS[peptide_name]["notes"]
-            else:
-                schedule_steps = [("Custom Dose", self.target_dose, self.dose_unit)]
-                notes = "Custom user protocol."
+            p = db.get_peptide_by_name(peptide_name)
+            schedule_steps = p["schedule"] if p and p["schedule"] else [("Custom Dose", self.target_dose, self.dose_unit)]
+            notes = p["notes"] if p else "Custom protocol."
+            sources = p["sources"] if p else []
                 
-            # Construct file output
             filename = f"peptide_{peptide_name.lower().replace(' ', '_')}_schedule.txt"
             filepath = os.path.join(os.getcwd(), filename)
             
@@ -765,37 +696,21 @@ class PeptideCalculatorApp(App):
                 f.write("-" * 68 + "\n")
                 
                 for phase, dose_val, unit in schedule_steps:
-                    if unit == "mcg":
-                        dose_mg = dose_val / 1000.0
-                        dose_str = f"{dose_val:.0f} mcg"
-                    else:
-                        dose_mg = dose_val
-                        dose_str = f"{dose_val:.2f} mg"
-                        
-                    vol_ml = dose_mg / conc_mg_ml
+                    dose_mg = dose_val / 1000.0 if unit == "mcg" else dose_val
+                    dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
+                    vol_ml = dose_mg / conc_mg_ml if conc_mg_ml > 0 else 0
                     units = vol_ml * 100.0
-                    
                     f.write(f"{phase:<22} | {dose_str:<12} | {vol_ml:.3f} mL    | {units:.1f} Units\n")
                     
-                f.write("-" * 68 + "\n\n")
-                f.write("RECONSTITUTION & STORAGE GUIDELINES:\n")
-                f.write("1. Preparation:\n")
-                f.write("   - Clean the rubber tops of both the BAC water and peptide vials with alcohol.\n")
-                f.write("   - Use a sterile syringe to draw the bacteriostatic water.\n")
-                f.write("2. Reconstitution:\n")
-                f.write("   - Slowly inject the water into the peptide vial, aiming at the glass wall.\n")
-                f.write("   - DO NOT SHAKE the vial. Shaking damages fragile peptide structures.\n")
-                f.write("   - Gently swirl the vial until the powder completely dissolves.\n")
-                f.write("3. Storage & Care:\n")
-                f.write("   - Store reconstituted peptide in the refrigerator at 36°F to 46°F (2°C to 8°C).\n")
-                f.write("   - Protect the vial from direct sunlight and extreme temperatures.\n")
-                f.write("   - Reconstituted peptides are generally stable for 30 days under refrigeration.\n")
+                if sources:
+                    f.write("\n" + "-" * 68 + "\n")
+                    f.write("SCIENTIFIC CITATIONS & SOURCES:\n")
+                    for s in sources:
+                        f.write(f"- {s['title']} (PMID: {s['pmid']})\n  URL: {s['url']}\n")
+                        
                 f.write("\n" + "=" * 68 + "\n")
-                f.write("Disclaimer: For research/educational reference only. Consult a physician.\n")
-                f.write("=" * 68 + "\n")
                 
             self.notify(f"Saved schedule to: {filename}", timeout=4.0)
-            
         except Exception as e:
             self.notify(f"Error saving schedule: {str(e)}", severity="error")
 

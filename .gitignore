@@ -1,4 +1,6 @@
 .venv/
 __pycache__/
 *.pyc
+*.db
 peptide_*_schedule.txt
+patient_*_peptides_summary.txt
