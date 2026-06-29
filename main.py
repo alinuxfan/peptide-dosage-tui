@@ -214,6 +214,21 @@ SelectCurrent {
     margin-bottom: 0;
 }
 
+#profile-select {
+    width: 25;
+    margin-right: 1;
+}
+
+#patient-add-peptide-select {
+    width: 25;
+    margin-right: 1;
+}
+
+#new-profile-input {
+    width: 22;
+    margin-right: 1;
+}
+
 .action-title {
     color: #38bdf8;
     text-style: bold;
@@ -434,6 +449,7 @@ class PeptideCalculatorApp(App):
         
         profile_select = self.query_one("#profile-select", Select)
         profile_select.set_options(options)
+        profile_select.value = str(self.active_profile_id)
         
         self.refresh_active_profile_display()
 
@@ -442,6 +458,9 @@ class PeptideCalculatorApp(App):
         current_prof_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), "Unknown")
         try:
             self.query_one("#calc-active-profile", Label).update(current_prof_name)
+            prof_select = self.query_one("#profile-select", Select)
+            if str(prof_select.value) != str(self.active_profile_id):
+                prof_select.value = str(self.active_profile_id)
         except Exception:
             pass
         self.refresh_patient_protocols_table()
@@ -522,8 +541,9 @@ class PeptideCalculatorApp(App):
         elif event.select.id == "profile-select":
             try:
                 val = int(str(event.value))
-                self.active_profile_id = val
-                self.refresh_active_profile_display()
+                if val != self.active_profile_id:
+                    self.active_profile_id = val
+                    self.refresh_active_profile_display()
             except (ValueError, TypeError):
                 pass
             
@@ -634,9 +654,9 @@ class PeptideCalculatorApp(App):
         prof_id = db.add_profile(name)
         if prof_id:
             input_widget.value = ""
-            self.refresh_profiles()
             self.active_profile_id = prof_id
-            self.notify(f"Created profile: {name}", timeout=3.0)
+            self.refresh_profiles()
+            self.notify(f"Created & selected profile: {name}", timeout=3.0)
         else:
             self.notify("Profile name already exists.", severity="error")
 
