@@ -116,15 +116,15 @@ TabPane {
 
 .preset-row {
     layout: horizontal;
-    height: 2;
+    height: 3;
     margin-bottom: 0;
     margin-top: 0;
 }
 
 .preset-row Button {
     margin-right: 1;
-    min-width: 5;
-    height: 1;
+    min-width: 6;
+    height: 3;
     background: #334155;
     color: #f1f5f9;
 }
@@ -215,24 +215,25 @@ DataTable {
 .info-section {
     background: #1e293b;
     border: solid #334155;
-    padding: 0 1;
+    padding: 1 1;
     margin-bottom: 1;
 }
 
 .info-title {
     color: #38bdf8;
     text-style: bold;
-    margin-bottom: 0;
+    margin-bottom: 1;
 }
 
 .info-text {
     color: #cbd5e1;
-    margin-bottom: 0;
+    margin-bottom: 1;
 }
 
 .source-link {
     color: #38bdf8;
     margin-left: 2;
+    margin-bottom: 1;
 }
 
 #save-profile-protocol-btn {
@@ -383,12 +384,12 @@ class PeptideCalculatorApp(App):
                 with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
                     for p in db.get_peptides():
                         with Vertical(classes="info-section"):
-                            yield Label(f"{p['name']} Reference & Literature", classes="info-title")
-                            yield Label(f"• Standard Vial: {p['vial_mg']} mg | Dilution: {p['water_ml']} mL | Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
+                            yield Label(f"🔬 {p['name']} Reference & Clinical Guidelines", classes="info-title")
+                            yield Static(f"• Standard Vial: {p['vial_mg']} mg | Recommended BAC Water: {p['water_ml']} mL\n• Target Dose: {p['dose']} {p['unit']} ({p['freq']})\n• Details: {p['notes']}", classes="info-text")
                             if p['sources']:
-                                yield Label("Scientific Citations & PubMed Links:", classes="input-label")
+                                yield Label("Scientific Citations & PubMed Literature:", classes="input-label")
                                 for s in p['sources']:
-                                    yield Label(f"  - {s['title']} (PMID: {s['pmid']})\n    Link: {s['url']}", classes="source-link")
+                                    yield Static(f"  - {s['title']} (PMID: {s['pmid']})\n    URL: {s['url']}", classes="source-link")
         yield Footer()
 
     def on_mount(self) -> None:
