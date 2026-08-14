@@ -2,7 +2,9 @@ import os
 import sys
 from datetime import datetime
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Container, Vertical, Horizontal, Grid, ScrollableContainer
+from textual.screen import ModalScreen
 from textual.widgets import (
     Header,
     Footer,
@@ -17,6 +19,7 @@ from textual.widgets import (
 )
 from textual.reactive import reactive
 
+import calc
 import db
 
 # Compact ASCII syringe drawing helper
@@ -204,7 +207,7 @@ SelectCurrent {
     padding: 0 1;
     background: #1e293b;
     border-bottom: solid #334155;
-    height: 7;
+    height: 10;
 }
 
 .control-row {
@@ -300,7 +303,7 @@ DataTable {
     height: 3;
 }
 
-#delete-protocol-btn {
+#delete-protocol-btn, #remove-profile-btn, #delete-log-btn {
     background: #f43f5e;
     color: #ffffff;
     text-style: bold;
@@ -308,7 +311,87 @@ DataTable {
     margin-left: 1;
     height: 3;
 }
+
+#edit-protocol-btn, #log-dose-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    text-style: bold;
+    min-width: 16;
+    margin-left: 1;
+    height: 3;
+}
+
+#adherence-table {
+    height: 10;
+    margin: 0 1;
+}
 """
+
+CONFIRM_CSS = """
+ConfirmScreen {
+    align: center middle;
+}
+
+#confirm-dialog {
+    width: 60;
+    height: auto;
+    background: #1e293b;
+    border: solid #f43f5e;
+    padding: 1 2;
+}
+
+#confirm-message {
+    color: #f1f5f9;
+    margin-bottom: 1;
+    height: auto;
+}
+
+#confirm-buttons {
+    layout: horizontal;
+    height: 3;
+    align: right middle;
+}
+
+#confirm-buttons Button {
+    margin-left: 1;
+    min-width: 10;
+}
+
+#confirm-yes {
+    background: #f43f5e;
+    color: #ffffff;
+}
+
+#confirm-no {
+    background: #334155;
+    color: #f1f5f9;
+}
+"""
+
+
+class ConfirmScreen(ModalScreen[bool]):
+    """A simple Yes/No confirmation modal. Dismisses with True (confirmed) or False (cancelled)."""
+
+    CSS = CONFIRM_CSS
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
+
+    def compose(self) -> ComposeResult:
+        with Container(id="confirm-dialog"):
+            yield Label(self.message, id="confirm-message")
+            with Horizontal(id="confirm-buttons"):
+                yield Button("Cancel", id="confirm-no")
+                yield Button("Confirm", id="confirm-yes")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.dismiss(event.button.id == "confirm-yes")
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
 
 
 class PeptideCalculatorApp(App):
@@ -327,7 +410,7 @@ class PeptideCalculatorApp(App):
         db.init_db()
         yield Header()
         with TabbedContent():
-            with TabPane("Calculator & Syringe Visualizer"):
+            with TabPane("Calculator & Syringe Visualizer", id="calc-tab"):
                 with Grid(classes="pane-container"):
                     # Left Sidebar: Inputs in Scrollable Container
                     with ScrollableContainer(classes="sidebar-panel"):
@@ -400,7 +483,7 @@ class PeptideCalculatorApp(App):
                         yield Label("INSULIN SYRINGE DRAW VISUALIZER (U-100 Syringe)", classes="title-label")
                         yield Label("  Syringe representation will appear here when inputs are valid.", id="syringe-visual")
 
-            with TabPane("Patient Tracker (Multi-Person)"):
+            with TabPane("Patient Tracker (Multi-Person)", id="patient-tab"):
                 with Vertical():
                     with Container(classes="patient-controls-bar"):
                         with Horizontal(classes="control-row"):
@@ -408,22 +491,36 @@ class PeptideCalculatorApp(App):
                             yield Select(options=[("Default User", "1")], value="1", id="profile-select")
                             yield Input(placeholder="New person name...", id="new-profile-input")
                             yield Button("+ Add Person", id="add-profile-btn")
+                            yield Button("❌ Remove Person", id="remove-profile-btn")
                         with Horizontal(classes="control-row"):
                             yield Label("Quick Add Peptide:", classes="action-title")
                             yield Select(options=[("BPC-157", "BPC-157")], value="BPC-157", id="patient-add-peptide-select")
                             yield Button("+ Add to Person", id="quick-add-peptide-btn")
                             yield Button("🖨️ Export Printable Sheet", id="export-patient-sheet-btn")
                             yield Button("❌ Remove Selected", id="delete-protocol-btn")
+                        with Horizontal(classes="control-row"):
+                            yield Button("✏️ Edit Selected", id="edit-protocol-btn")
+                            yield Button("💊 Log Dose Taken", id="log-dose-btn")
                     yield DataTable(id="patient-protocols-table")
 
-            with TabPane("Dosing Schedule Planner"):
+            with TabPane("Dosing Schedule Planner", id="schedule-tab"):
                 with Vertical():
                     with Container(classes="action-bar"):
                         yield Label("Peptide Titration Schedule Planner & Exporter", classes="action-title")
                         yield Button("Save Schedule to File", id="save-schedule-btn")
                     yield DataTable(id="schedule-table")
 
-            with TabPane("Peptide Reference & Cited Sources"):
+            with TabPane("Dose Log", id="dose-log-tab"):
+                with Vertical():
+                    with Container(classes="action-bar"):
+                        yield Label("Dose History & Adherence (Active Profile)", classes="action-title")
+                        yield Button("🗑️ Delete Entry", id="delete-log-btn")
+                    yield Label("Adherence Summary", classes="title-label")
+                    yield DataTable(id="adherence-table")
+                    yield Label("Recent Dose Log", classes="title-label")
+                    yield DataTable(id="dose-log-table")
+
+            with TabPane("Peptide Reference & Cited Sources", id="reference-tab"):
                 with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
                     yield Label("Loading reference database...", classes="info-title")
         yield Footer()
@@ -434,10 +531,17 @@ class PeptideCalculatorApp(App):
         
         patient_table = self.query_one("#patient-protocols-table", DataTable)
         patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Last Updated")
-        
+
+        adherence_table = self.query_one("#adherence-table", DataTable)
+        adherence_table.add_columns("Peptide", "Frequency", "Doses Logged", "Adherence %")
+
+        dose_log_table = self.query_one("#dose-log-table", DataTable)
+        dose_log_table.add_columns("ID", "Peptide", "Dose", "Taken At", "Notes")
+
         self.refresh_profiles()
         self.refresh_peptide_templates()
         self.refresh_patient_protocols_table()
+        self.refresh_dose_log_tables()
         self.populate_reference_tab()
         self.recalculate()
 
@@ -464,16 +568,30 @@ class PeptideCalculatorApp(App):
         except Exception:
             pass
         self.refresh_patient_protocols_table()
+        self.refresh_dose_log_tables()
 
     def refresh_peptide_templates(self) -> None:
         peptides = db.get_peptides()
         options = [(p["name"], p["name"]) for p in peptides]
-        
+        names = {p["name"] for p in peptides}
+
+        # Select.set_options() always resets the current selection to blank,
+        # so restore a sensible value afterward (previous selection if it
+        # still exists, else a fallback) rather than leaving the dropdown empty.
         peptide_select = self.query_one("#peptide-select", Select)
+        prior_peptide = peptide_select.value if peptide_select.value != Select.BLANK else self.peptide
         peptide_select.set_options(options)
-        
+        peptide_select.value = prior_peptide if prior_peptide in names else "Custom / Other"
+
         patient_add_select = self.query_one("#patient-add-peptide-select", Select)
+        prior_patient_add = patient_add_select.value
         patient_add_select.set_options(options)
+        if prior_patient_add in names:
+            patient_add_select.value = prior_patient_add
+        elif "BPC-157" in names:
+            patient_add_select.value = "BPC-157"
+        elif names:
+            patient_add_select.value = sorted(names)[0]
 
     def refresh_patient_protocols_table(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
@@ -481,10 +599,10 @@ class PeptideCalculatorApp(App):
         
         protocols = db.get_user_protocols(self.active_profile_id)
         for p in protocols:
-            conc = p['vial_mg'] / p['water_ml'] if p['water_ml'] > 0 else 0
-            dose_mg = p['target_dose'] / 1000.0 if p['dose_unit'] == 'mcg' else p['target_dose']
-            vol_ml = dose_mg / conc if conc > 0 else 0
-            units = vol_ml * 100.0
+            conc = calc.concentration_mg_ml(p['vial_mg'], p['water_ml'])
+            dose_mg = calc.dose_to_mg(p['target_dose'], p['dose_unit'])
+            vol_ml = calc.draw_volume_ml(dose_mg, conc)
+            units = calc.syringe_units(vol_ml)
             
             table.add_row(
                 str(p['id']),
@@ -496,6 +614,54 @@ class PeptideCalculatorApp(App):
                 p['frequency'],
                 p['updated_at'][:10]
             )
+
+    def refresh_dose_log_tables(self) -> None:
+        try:
+            adherence_table = self.query_one("#adherence-table", DataTable)
+            dose_log_table = self.query_one("#dose-log-table", DataTable)
+        except Exception:
+            return  # tables not mounted yet
+
+        adherence_table.clear()
+        for entry in db.get_protocol_adherence(self.active_profile_id):
+            pct_str = f"{entry['adherence_pct']:.0f}%" if entry['adherence_pct'] is not None else "N/A"
+            adherence_table.add_row(
+                entry['peptide_name'],
+                entry['frequency'] or "-",
+                str(entry['logged_count']),
+                pct_str,
+            )
+
+        dose_log_table.clear()
+        for log in db.get_dose_log(self.active_profile_id):
+            dose_log_table.add_row(
+                str(log['id']),
+                log['peptide_name'],
+                f"{log['dose_amount']} {log['dose_unit']}",
+                log['taken_at'],
+                log['notes'] or "",
+            )
+
+    def delete_selected_dose_log_entry(self) -> None:
+        table = self.query_one("#dose-log-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the dose log to remove.", severity="warning")
+            return
+
+        try:
+            log_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected log entry.", severity="error")
+            return
+
+        def handle_confirm(confirmed: bool | None) -> None:
+            if not confirmed:
+                return
+            db.delete_dose_log_entry(log_id)
+            self.refresh_dose_log_tables()
+            self.notify("Removed dose log entry.", timeout=3.0)
+
+        self.push_screen(ConfirmScreen("Delete this dose log entry?"), handle_confirm)
 
     def populate_reference_tab(self) -> None:
         container = self.query_one("#reference-scroll-container", ScrollableContainer)
@@ -589,9 +755,17 @@ class PeptideCalculatorApp(App):
             self.export_patient_sheet()
         elif btn_id == "delete-protocol-btn":
             self.delete_selected_patient_protocol()
+        elif btn_id == "remove-profile-btn":
+            self.delete_selected_profile()
+        elif btn_id == "edit-protocol-btn":
+            self.load_selected_protocol_for_edit()
+        elif btn_id == "log-dose-btn":
+            self.log_selected_protocol_dose()
+        elif btn_id == "delete-log-btn":
+            self.delete_selected_dose_log_entry()
         elif btn_id == "save-schedule-btn":
             self.save_schedule_to_file()
-            
+
         self.recalculate()
         self.update_schedule_table()
 
@@ -669,16 +843,129 @@ class PeptideCalculatorApp(App):
 
     def delete_selected_patient_protocol(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
-        if table.cursor_row is not None and table.row_count > 0:
-            protocol_id_str = table.get_cell_at((table.cursor_row, 0))
-            try:
-                db.delete_user_protocol(int(protocol_id_str))
-                self.refresh_patient_protocols_table()
-                self.notify("Removed protocol from patient profile.", timeout=3.0)
-            except Exception as e:
-                self.notify(f"Error deleting protocol: {e}", severity="error")
-        else:
+        if table.cursor_row is None or table.row_count == 0:
             self.notify("Select a row in the patient table to remove.", severity="warning")
+            return
+
+        try:
+            protocol_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected protocol.", severity="error")
+            return
+
+        def handle_confirm(confirmed: bool | None) -> None:
+            if not confirmed:
+                return
+            db.delete_user_protocol(protocol_id)
+            self.refresh_patient_protocols_table()
+            self.refresh_dose_log_tables()
+            self.notify("Removed protocol from patient profile.", timeout=3.0)
+
+        self.push_screen(ConfirmScreen("Remove this protocol from the patient's list?"), handle_confirm)
+
+    def delete_selected_profile(self) -> None:
+        profiles = db.get_profiles()
+        if len(profiles) <= 1:
+            self.notify("Cannot remove the only remaining profile.", severity="warning")
+            return
+
+        profile_id = self.active_profile_id
+        prof_name = next((p["name"] for p in profiles if p["id"] == profile_id), "this profile")
+
+        def handle_confirm(confirmed: bool | None) -> None:
+            if not confirmed:
+                return
+            if db.delete_profile(profile_id):
+                remaining = db.get_profiles()
+                self.active_profile_id = remaining[0]["id"]
+                self.refresh_profiles()
+                self.refresh_dose_log_tables()
+                self.notify(f"Removed profile: {prof_name}", timeout=3.0)
+            else:
+                self.notify("Cannot remove the only remaining profile.", severity="warning")
+
+        self.push_screen(
+            ConfirmScreen(f"Remove person '{prof_name}' and all their saved protocols/dose history? This cannot be undone."),
+            handle_confirm,
+        )
+
+    def load_selected_protocol_for_edit(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the patient table to edit.", severity="warning")
+            return
+
+        try:
+            protocol_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected protocol.", severity="error")
+            return
+
+        protocol = db.get_user_protocol_by_id(protocol_id)
+        if not protocol:
+            self.notify("Protocol not found.", severity="error")
+            return
+
+        peptide_select = self.query_one("#peptide-select", Select)
+        dose_unit_select = self.query_one("#dose-unit-select", Select)
+
+        # Bypass on_select_changed's auto-refill-from-template side effect --
+        # we want this protocol's exact saved values, not the master template's.
+        with peptide_select.prevent(Select.Changed):
+            peptide_select.value = protocol["peptide_name"]
+        with dose_unit_select.prevent(Select.Changed):
+            dose_unit_select.value = protocol["dose_unit"]
+
+        self.query_one("#vial-size-input", Input).value = f"{protocol['vial_mg']}"
+        self.query_one("#water-input", Input).value = f"{protocol['water_ml']}"
+        self.query_one("#dose-input", Input).value = f"{protocol['target_dose']}"
+
+        self.peptide = protocol["peptide_name"]
+        self.vial_mg = protocol["vial_mg"]
+        self.water_ml = protocol["water_ml"]
+        self.target_dose = protocol["target_dose"]
+        self.dose_unit = protocol["dose_unit"]
+
+        self.query_one(TabbedContent).active = "calc-tab"
+        # TabbedContent re-syncs `active` to whichever tab contains the
+        # focused widget (see TabPane._on_descendant_focus), and the button
+        # that triggered this handler is still focused inside patient-tab --
+        # that resync would otherwise revert the tab switch above on the next
+        # message cycle. Moving focus into the new tab keeps them in sync.
+        self.set_focus(self.query_one("#vial-size-input", Input))
+        self.recalculate()
+        self.update_schedule_table()
+        self.notify(
+            f"Loaded {protocol['peptide_name']} into the calculator for editing. Adjust and Save to update.",
+            timeout=4.0,
+        )
+
+    def log_selected_protocol_dose(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the patient table to log a dose.", severity="warning")
+            return
+
+        try:
+            protocol_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected protocol.", severity="error")
+            return
+
+        protocol = db.get_user_protocol_by_id(protocol_id)
+        if not protocol:
+            self.notify("Protocol not found.", severity="error")
+            return
+
+        db.log_dose(
+            self.active_profile_id,
+            protocol_id,
+            protocol["peptide_name"],
+            protocol["target_dose"],
+            protocol["dose_unit"],
+        )
+        self.refresh_dose_log_tables()
+        self.notify(f"Logged dose: {protocol['peptide_name']} {protocol['target_dose']} {protocol['dose_unit']}", timeout=3.0)
 
     def recalculate(self) -> None:
         try:
@@ -695,12 +982,12 @@ class PeptideCalculatorApp(App):
                 self.query_one("#syringe-visual", Label).update("  Syringe representation will appear here when inputs are valid.")
                 return
 
-            conc_mg_ml = vial_mg / water_ml
+            conc_mg_ml = calc.concentration_mg_ml(vial_mg, water_ml)
             conc_mcg_ml = conc_mg_ml * 1000.0
-            dose_mg = dose / 1000.0 if unit == "mcg" else dose
-            draw_volume_ml = dose_mg / conc_mg_ml
-            syringe_units = draw_volume_ml * 100.0
-            doses_per_vial = vial_mg / dose_mg if dose_mg > 0 else 0
+            dose_mg = calc.dose_to_mg(dose, unit)
+            draw_volume_ml = calc.draw_volume_ml(dose_mg, conc_mg_ml)
+            syringe_units = calc.syringe_units(draw_volume_ml)
+            doses_per_vial = calc.doses_per_vial(vial_mg, dose_mg)
 
             self.query_one("#calc-concentration", Label).update(f"{conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL)")
             self.query_one("#calc-dose-volume", Label).update(f"{draw_volume_ml:.3f} mL")
@@ -724,20 +1011,20 @@ class PeptideCalculatorApp(App):
             
             vial_mg = self.vial_mg
             water_ml = self.water_ml
-            if vial_mg <= 0 or water_ml <= 0:
+            if vial_mg <= 0 or water_ml <= 0 or self.target_dose <= 0:
                 return
-                
-            conc_mg_ml = vial_mg / water_ml
+
+            conc_mg_ml = calc.concentration_mg_ml(vial_mg, water_ml)
             p = db.get_peptide_by_name(self.peptide)
             schedule_steps = p["schedule"] if p and p["schedule"] else [("Custom Dose", self.target_dose, self.dose_unit)]
-                
+
             for phase, dose_val, unit in schedule_steps:
-                dose_mg = dose_val / 1000.0 if unit == "mcg" else dose_val
+                dose_mg = calc.dose_to_mg(dose_val, unit)
                 dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
-                vol_ml = dose_mg / conc_mg_ml if conc_mg_ml > 0 else 0
-                units = vol_ml * 100.0
-                doses_per_vial = vial_mg / dose_mg if dose_mg > 0 else 0.0
-                
+                vol_ml = calc.draw_volume_ml(dose_mg, conc_mg_ml)
+                units = calc.syringe_units(vol_ml)
+                doses_per_vial = calc.doses_per_vial(vial_mg, dose_mg)
+
                 table.add_row(phase, dose_str, f"{vol_ml:.3f} mL", f"{units:.1f} Units", f"{doses_per_vial:.1f} doses")
         except Exception:
             pass
@@ -751,7 +1038,7 @@ class PeptideCalculatorApp(App):
                 self.notify("Cannot save schedule: Invalid inputs.", severity="error")
                 return
                 
-            conc_mg_ml = vial_mg / water_ml
+            conc_mg_ml = calc.concentration_mg_ml(vial_mg, water_ml)
             conc_mcg_ml = conc_mg_ml * 1000.0
             p = db.get_peptide_by_name(peptide_name)
             schedule_steps = p["schedule"] if p and p["schedule"] else [("Custom Dose", self.target_dose, self.dose_unit)]
@@ -781,10 +1068,10 @@ class PeptideCalculatorApp(App):
                 f.write("-" * 68 + "\n")
                 
                 for phase, dose_val, unit in schedule_steps:
-                    dose_mg = dose_val / 1000.0 if unit == "mcg" else dose_val
+                    dose_mg = calc.dose_to_mg(dose_val, unit)
                     dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
-                    vol_ml = dose_mg / conc_mg_ml if conc_mg_ml > 0 else 0
-                    units = vol_ml * 100.0
+                    vol_ml = calc.draw_volume_ml(dose_mg, conc_mg_ml)
+                    units = calc.syringe_units(vol_ml)
                     f.write(f"{phase:<22} | {dose_str:<12} | {vol_ml:.3f} mL    | {units:.1f} Units\n")
                     
                 if sources:
@@ -800,6 +1087,10 @@ class PeptideCalculatorApp(App):
             self.notify(f"Error saving schedule: {str(e)}", severity="error")
 
 
-if __name__ == "__main__":
+def run() -> None:
     app = PeptideCalculatorApp()
     app.run()
+
+
+if __name__ == "__main__":
+    run()

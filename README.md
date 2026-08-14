@@ -18,9 +18,9 @@ A high-performance, responsive Terminal User Interface (TUI) built with **Python
 
 ### 👥 2. Multi-Person Patient Protocol Tracker
 - **SQLite Database (`peptides.db`)**: Local persistent database storage for patient profiles and assigned protocols.
-- **Profile Management**: Switch between patient profiles or create new patient profiles cleanly within the TUI.
-- **Quick-Add Workflows**: Assign peptide templates directly to a selected patient profile with a single click.
-- **🖨️ Export Printable Reference Sheets**: Generate formatted patient protocol summary text files (`patient_<name>_peptides_summary.txt`) detailing active medications, doses, syringe draws, notes, and citations.
+- **Profile Management**: Switch between patient profiles, create new patient profiles, or remove a profile (and its protocols/dose history) with a confirmation prompt.
+- **Quick-Add & Edit Workflows**: Assign peptide templates directly to a selected patient profile with a single click, or load an existing saved protocol back into the calculator to edit its exact values.
+- **🖨️ Export Printable Reference Sheets**: Generate formatted patient protocol summary text files (`patient_<name>_peptides_summary.txt`) detailing active medications, doses, syringe draws, notes, citations, and recent dose history.
 
 ### 🔬 3. Scientific PubMed Citations & Literature Reference
 - **Clinical Literature Integration**: Embedded study titles, PubMed IDs (PMIDs), and direct URLs (`https://pubmed.ncbi.nlm.nih.gov/<PMID>/`) for every supported peptide.
@@ -29,6 +29,10 @@ A high-performance, responsive Terminal User Interface (TUI) built with **Python
 ### 📅 4. Titration Schedule Planner
 - **Multi-Phase Titration Schedules**: Generates multi-week step-up titration schedules for GLP-1/2/3 analogues and growth hormone secretagogues.
 - **File Export**: Save standalone titration schedules to disk (`peptide_<name>_schedule.txt`).
+
+### 💊 5. Dose History & Adherence Tracking
+- **Dose Log**: Log each dose actually taken against a saved protocol, timestamped, with an optional note.
+- **Adherence Summary**: Per-protocol adherence percentage, estimated from the protocol's frequency against how many doses have been logged since it was started.
 
 ---
 
@@ -39,7 +43,7 @@ The application includes pre-configured master templates and accredited scientif
 | Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
 | :--- | :--- | :--- | :--- | :--- |
 | **BPC-157** | Tissue Repair / Healing | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
-| **Tesemorelin** | GHRH Analogue / Fat Reduction | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ daily (bedtime) |
+| **Tesamorelin** | GHRH Analogue / Fat Reduction | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ daily (bedtime) |
 | **Tirzepatide** | GIP / GLP-1 Dual Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ weekly |
 | **Semaglutide** | GLP-1 Receptor Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
 | **Retatrutide** | GLP-1 / GIP / GCGR Triple Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ weekly |
@@ -51,6 +55,19 @@ The application includes pre-configured master templates and accredited scientif
 | **NAD+** | Cellular Coenzyme | $500.0\text{ mg}$ | $5.0\text{ mL}$ | $50.0\text{ mg}$ (2x weekly) |
 | **GLOW Blend** | GHK-Cu / BPC-157 / TB-500 | $50.0\text{ mg}$ | $3.0\text{ mL}$ | $1.5\text{ mg}$ daily |
 | **KLOW Blend** | GHK-Cu / BPC / TB / KPV | $50.0\text{ mg}$ | $3.0\text{ mL}$ | $1.5\text{ mg}$ daily |
+| **DSIP** | Sleep-Regulating Nonapeptide | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ nightly |
+| **Melanotan II** | Melanocortin Receptor Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily (loading) |
+| **GHK-Cu** | Copper-Binding Tripeptide | $100.0\text{ mg}$ | $5.0\text{ mL}$ | $1.0\text{ mg}$ daily |
+| **Cagrilintide** | Long-Acting Amylin Analogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
+| **CJC-1295 with DAC** | Long-Acting GHRH Secretagogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ weekly |
+| **Selank** | Anxiolytic/Nootropic Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
+| **Semax** | Nootropic/Neuroprotective Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $300.0\text{ mcg}$ daily |
+| **Pinealon** | Neuroprotective Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily |
+| **PT-141** | Melanocortin Receptor Agonist (Libido) | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ PRN |
+| **Epithalon** | Telomerase-Activating Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ daily (course) |
+| **AICAR** | AMPK Activator | $50.0\text{ mg}$ | $2.0\text{ mL}$ | $50.0\text{ mg}$ (3x weekly) |
+| **TB-500** | Thymosin Beta-4 Fragment | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ (2x weekly) |
+| **IGF-1 LR3** | Long-Acting IGF-1 Analogue | $0.1\text{ mg}$ | $1.0\text{ mL}$ | $20.0\text{ mcg}$ daily |
 
 ---
 
@@ -95,13 +112,18 @@ python main.py
 4. Click **💾 Save Protocol to Active Profile** to log the active medication to the selected patient profile.
 
 ### 2. Patient Tracker Tab
-1. Select an existing person profile from the **Active Person Profile** dropdown (or enter a new name and click **+ Add Person**).
+1. Select an existing person profile from the **Active Person Profile** dropdown (or enter a new name and click **+ Add Person**), or click **❌ Remove Person** to delete the active profile (blocked if it's the only one left, and confirmed before deleting).
 2. Choose a peptide from the **Quick Add Peptide** dropdown and click **+ Add to Person** to assign protocols rapidly.
-3. Click **🖨️ Export Printable Sheet** to export a full printable summary report for that person.
+3. Select a row and click **✏️ Edit Selected** to load that protocol's exact values back into the Calculator tab, or **💊 Log Dose Taken** to record that the dose was taken just now.
+4. Click **❌ Remove Selected** to delete a protocol (with a confirmation prompt), or **🖨️ Export Printable Sheet** to export a full printable summary report for that person.
 
 ### 3. Dosing Schedule Planner Tab
 1. Review multi-week titration step-up phases for GLP-1/2/3 or GH secretagogues.
 2. Click **Save Schedule to File** to export the schedule as a formatted text document.
+
+### 4. Dose Log Tab
+1. Review the adherence summary (expected vs. logged doses per protocol) and the raw chronological dose log for the active profile.
+2. Select an entry and click **🗑️ Delete Entry** to remove it (with a confirmation prompt).
 
 ---
 
@@ -111,6 +133,8 @@ python main.py
 peptide-dosage-tui/
 ├── main.py        # Core Textual TUI application layout, widgets, & handlers
 ├── db.py          # SQLite database connection, schema seeding, & export helpers
+├── calc.py        # Shared dosing-math and adherence-heuristic functions
+├── tests/         # pytest suite (calc.py and db.py)
 ├── peptides.db    # Local SQLite database (created on first run)
 ├── pyproject.toml # Project dependencies & metadata
 └── README.md      # Project documentation
