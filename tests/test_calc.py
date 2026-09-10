@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import calc
 
 
@@ -79,3 +81,38 @@ def test_adherence_percent_capped_at_100():
 def test_adherence_percent_unmeasurable():
     assert calc.adherence_percent(5, None, 30.0) is None
     assert calc.adherence_percent(0, 7.0, 0.5) is None
+
+
+def test_next_dose_due_at_anchors_on_last_taken():
+    last_taken = datetime(2026, 1, 1, 8, 0, 0)
+    # weekly (1x/week) -> 7 day interval
+    due = calc.next_dose_due_at(1.0, last_taken, None)
+    assert due == last_taken + timedelta(days=7)
+
+
+def test_next_dose_due_at_falls_back_when_never_logged():
+    created = datetime(2026, 1, 1, 8, 0, 0)
+    # daily (7x/week) -> 1 day interval
+    due = calc.next_dose_due_at(7.0, None, created)
+    assert due == created + timedelta(days=1)
+
+
+def test_next_dose_due_at_unmeasurable():
+    assert calc.next_dose_due_at(None, datetime(2026, 1, 1), datetime(2026, 1, 1)) is None
+    assert calc.next_dose_due_at(1.0, None, None) is None
+
+
+def test_format_due_label_overdue():
+    now = datetime(2026, 1, 10)
+    assert calc.format_due_label(now - timedelta(days=3), now) == "Overdue 3d"
+    assert calc.format_due_label(now - timedelta(hours=2), now) == "Overdue (today)"
+
+
+def test_format_due_label_upcoming():
+    now = datetime(2026, 1, 10)
+    assert calc.format_due_label(now + timedelta(hours=5), now) == "Due today"
+    assert calc.format_due_label(now + timedelta(days=4), now) == "Due in 4d"
+
+
+def test_format_due_label_unmeasurable():
+    assert calc.format_due_label(None, datetime(2026, 1, 10)) == "N/A"

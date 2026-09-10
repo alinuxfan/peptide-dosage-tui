@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Vertical, Horizontal, Grid, ScrollableContainer
@@ -626,10 +626,10 @@ class PeptideCalculatorApp(App):
         sched_table.add_columns("Phase / Week", "Dose", "Volume (mL)", "Syringe Draw (Units)", "Est. Doses per Vial")
         
         patient_table = self.query_one("#patient-protocols-table", DataTable)
-        patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Last Updated")
+        patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Next Dose Due", "Last Updated")
 
         adherence_table = self.query_one("#adherence-table", DataTable)
-        adherence_table.add_columns("Peptide", "Frequency", "Doses Logged", "Adherence %")
+        adherence_table.add_columns("Peptide", "Frequency", "Doses Logged", "Adherence %", "Next Dose Due")
 
         dose_log_table = self.query_one("#dose-log-table", DataTable)
         dose_log_table.add_columns("ID", "Peptide", "Dose", "Taken At", "Notes")
@@ -692,14 +692,21 @@ class PeptideCalculatorApp(App):
     def refresh_patient_protocols_table(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
         table.clear()
-        
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, to match db.py's next_due_at
+        due_by_protocol_id = {
+            entry['protocol_id']: entry['next_due_at']
+            for entry in db.get_protocol_adherence(self.active_profile_id)
+        }
+
         protocols = db.get_user_protocols(self.active_profile_id)
         for p in protocols:
             conc = calc.concentration_mg_ml(p['vial_mg'], p['water_ml'])
             dose_mg = calc.dose_to_mg(p['target_dose'], p['dose_unit'])
             vol_ml = calc.draw_volume_ml(dose_mg, conc)
             units = calc.syringe_units(vol_ml)
-            
+            due_label = calc.format_due_label(due_by_protocol_id.get(p['id']), now)
+
             table.add_row(
                 str(p['id']),
                 p['peptide_name'],
@@ -708,6 +715,7 @@ class PeptideCalculatorApp(App):
                 f"{p['target_dose']} {p['dose_unit']}",
                 f"{units:.1f} Units",
                 p['frequency'],
+                due_label,
                 p['updated_at'][:10]
             )
 
@@ -719,13 +727,16 @@ class PeptideCalculatorApp(App):
             return  # tables not mounted yet
 
         adherence_table.clear()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, to match db.py's next_due_at
         for entry in db.get_protocol_adherence(self.active_profile_id):
             pct_str = f"{entry['adherence_pct']:.0f}%" if entry['adherence_pct'] is not None else "N/A"
+            due_label = calc.format_due_label(entry['next_due_at'], now)
             adherence_table.add_row(
                 entry['peptide_name'],
                 entry['frequency'] or "-",
                 str(entry['logged_count']),
                 pct_str,
+                due_label,
             )
 
         dose_log_table.clear()

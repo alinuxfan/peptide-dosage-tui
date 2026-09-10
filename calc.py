@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timedelta
 
 # Pure dosing-math and adherence-heuristic functions shared by main.py (live UI)
 # and db.py (file export), so the formula only lives in one place.
@@ -79,3 +80,38 @@ def adherence_percent(logged_count: int, weekly_expected: float | None, days_ela
         return None
 
     return min(100.0, (logged_count / expected_count) * 100.0)
+
+
+def next_dose_due_at(
+    weekly_expected: float | None,
+    last_taken_at: datetime | None,
+    fallback_at: datetime | None,
+) -> datetime | None:
+    """When the next dose is due, given an expected weekly dose count.
+
+    Anchors off the most recently logged dose if there is one, otherwise
+    off `fallback_at` (typically the protocol's created_at) so a
+    never-logged protocol still reports a due date instead of nothing.
+    Returns None when frequency couldn't be parsed into a weekly count.
+    """
+    if weekly_expected is None or weekly_expected <= 0:
+        return None
+    anchor = last_taken_at or fallback_at
+    if anchor is None:
+        return None
+
+    interval_days = 7.0 / weekly_expected
+    return anchor + timedelta(days=interval_days)
+
+
+def format_due_label(next_due_at: datetime | None, now: datetime) -> str:
+    """Human-readable label for a next_dose_due_at value relative to `now`."""
+    if next_due_at is None:
+        return "N/A"
+
+    delta_days = (next_due_at - now).total_seconds() / 86400.0
+    if delta_days < 0:
+        overdue_days = abs(delta_days)
+        return "Overdue (today)" if overdue_days < 1 else f"Overdue {overdue_days:.0f}d"
+
+    return "Due today" if delta_days < 1 else f"Due in {delta_days:.0f}d"

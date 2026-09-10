@@ -763,6 +763,10 @@ def get_protocol_adherence(profile_id):
     entries exist since the protocol was created. Unparseable frequencies
     or brand-new protocols report adherence_pct=None ("not measurable")
     rather than guessing.
+
+    Also computes next_due_at (a datetime, or None if unmeasurable) from
+    the same weekly-expected figure, anchored off the most recent logged
+    dose (or the protocol's created_at if none has been logged yet).
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -775,19 +779,34 @@ def get_protocol_adherence(profile_id):
     now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive, to match SQLite's UTC CURRENT_TIMESTAMP strings
     result = []
     for p in protocols:
-        cursor.execute("SELECT COUNT(*) as count FROM dose_log WHERE protocol_id = ?", (p["id"],))
-        logged_count = cursor.fetchone()["count"]
+        cursor.execute(
+            "SELECT COUNT(*) as count, MAX(taken_at) as last_taken FROM dose_log WHERE protocol_id = ?",
+            (p["id"],)
+        )
+        log_row = cursor.fetchone()
+        logged_count = log_row["count"]
 
-        days_elapsed = 0.0
+        created_dt = None
         if p["created_at"]:
             try:
                 created_dt = datetime.strptime(p["created_at"], "%Y-%m-%d %H:%M:%S")
-                days_elapsed = max(0.0, (now - created_dt).total_seconds() / 86400.0)
             except ValueError:
-                days_elapsed = 0.0
+                created_dt = None
+
+        days_elapsed = 0.0
+        if created_dt:
+            days_elapsed = max(0.0, (now - created_dt).total_seconds() / 86400.0)
+
+        last_taken_dt = None
+        if log_row["last_taken"]:
+            try:
+                last_taken_dt = datetime.strptime(log_row["last_taken"], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                last_taken_dt = None
 
         weekly_expected = calc.parse_weekly_frequency(p["frequency"] or "")
         adherence_pct = calc.adherence_percent(logged_count, weekly_expected, days_elapsed)
+        next_due_at = calc.next_dose_due_at(weekly_expected, last_taken_dt, created_dt)
 
         result.append({
             "protocol_id": p["id"],
@@ -795,6 +814,7 @@ def get_protocol_adherence(profile_id):
             "frequency": p["frequency"],
             "logged_count": logged_count,
             "adherence_pct": adherence_pct,
+            "next_due_at": next_due_at,
         })
 
     conn.close()

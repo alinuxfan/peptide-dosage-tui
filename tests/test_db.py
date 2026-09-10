@@ -156,3 +156,41 @@ def test_get_protocol_adherence_unmeasurable_for_unparseable_frequency(fresh_db)
     adherence = fresh_db.get_protocol_adherence(pid)
     entry = next(a for a in adherence if a["peptide_name"] == "PT-141")
     assert entry["adherence_pct"] is None
+    assert entry["next_due_at"] is None
+
+
+def test_get_protocol_adherence_next_due_anchors_on_last_dose(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "weekly", "notes", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    conn = fresh_db.get_connection()
+    two_days_ago = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S")
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg")
+    conn.execute("UPDATE dose_log SET taken_at = ? WHERE protocol_id = ?", (two_days_ago, protocol_id))
+    conn.commit()
+    conn.close()
+
+    adherence = fresh_db.get_protocol_adherence(pid)
+    entry = next(a for a in adherence if a["protocol_id"] == protocol_id)
+    # weekly -> 7 day interval, last dose was 2 days ago -> ~5 days until next due
+    assert entry["next_due_at"] is not None
+    days_until = (entry["next_due_at"] - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 86400.0
+    assert 4.9 < days_until < 5.1
+
+
+def test_get_protocol_adherence_next_due_falls_back_to_created_at_when_never_logged(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "notes", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    adherence = fresh_db.get_protocol_adherence(pid)
+    entry = next(a for a in adherence if a["protocol_id"] == protocol_id)
+    assert entry["next_due_at"] is not None
+    # never logged -> anchored on created_at (just now) + 1 day (daily)
+    days_until = (entry["next_due_at"] - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 86400.0
+    assert 0.9 < days_until < 1.1
