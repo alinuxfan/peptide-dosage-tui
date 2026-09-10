@@ -1078,15 +1078,18 @@ class PeptideCalculatorApp(App):
                 f.write("-" * 68 + "\n\n")
                 
                 f.write("DOSING SCHEDULE:\n")
-                f.write(f"{'Phase / Period':<22} | {'Dose':<12} | {'Volume (mL)':<12} | {'Syringe Draw (U-100)':<20}\n")
-                f.write("-" * 68 + "\n")
-                
+                phase_width = max(22, max((len(phase) for phase, _, _ in schedule_steps), default=22))
+                header = f"{'Phase / Period':<{phase_width}} | {'Dose':<12} | {'Volume (mL)':<12} | {'Syringe Draw (U-100)':<20}"
+                f.write(header + "\n")
+                f.write("-" * len(header) + "\n")
+
                 for phase, dose_val, unit in schedule_steps:
                     dose_mg = calc.dose_to_mg(dose_val, unit)
                     dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
                     vol_ml = calc.draw_volume_ml(dose_mg, conc_mg_ml)
                     units = calc.syringe_units(vol_ml)
-                    f.write(f"{phase:<22} | {dose_str:<12} | {vol_ml:.3f} mL    | {units:.1f} Units\n")
+                    vol_str = f"{vol_ml:.3f} mL"
+                    f.write(f"{phase:<{phase_width}} | {dose_str:<12} | {vol_str:<12} | {units:.1f} Units\n")
                     
                 if sources:
                     f.write("\n" + "-" * 68 + "\n")

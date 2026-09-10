@@ -846,14 +846,16 @@ def export_person_reference_sheet(profile_id):
                 
                 if p['schedule']:
                     f.write("\n  Titration Schedule:\n")
-                    f.write(f"  {'Phase':<20} | {'Dose':<10} | {'Syringe Draw':<15}\n")
-                    f.write("  " + "-" * 48 + "\n")
+                    phase_width = max(20, max((len(phase) for phase, _, _ in p['schedule']), default=20))
+                    header = f"  {'Phase':<{phase_width}} | {'Dose':<10} | {'Syringe Draw':<15}"
+                    f.write(header + "\n")
+                    f.write("  " + "-" * (len(header) - 2) + "\n")
                     for phase, d_val, u_unit in p['schedule']:
                         d_mg = calc.dose_to_mg(d_val, u_unit)
                         v_ml = calc.draw_volume_ml(d_mg, conc_mg_ml)
                         u_draw = calc.syringe_units(v_ml)
                         d_str = f"{d_val:.0f} mcg" if u_unit == 'mcg' else f"{d_val:.2f} mg"
-                        f.write(f"  {phase:<20} | {d_str:<10} | {u_draw:.1f} Units\n")
+                        f.write(f"  {phase:<{phase_width}} | {d_str:<10} | {u_draw:.1f} Units\n")
                         
                 if p['sources']:
                     f.write("\n  Scientific Citations & Literature:\n")
