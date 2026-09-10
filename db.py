@@ -459,6 +459,450 @@ DEFAULT_PEPTIDES = [
         ]
     },
     {
+        "name": "Melanotan I",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 250.0,
+        "unit": "mcg",
+        "freq": "daily (loading), then 2-3x weekly (maintenance)",
+        "notes": "Selective MC1R agonist studied for skin pigmentation/tanning; the linear precursor peptide to Melanotan II (basis of the approved drug afamelanotide), with a milder side-effect profile (less nausea/libido effect) than MT-II. Loading dose 250mcg - 500mcg daily until desired tan, then 2-3x weekly maintenance.",
+        "schedule": [
+            ("Week 1-2 (Loading)", 250.0, "mcg"),
+            ("Week 3-4 (Loading)", 500.0, "mcg"),
+            ("Week 5+ (Maintenance)", 500.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Skin pigmentation and pharmacokinetics of melanotan-I in humans", "pmid": "9113347", "url": "https://pubmed.ncbi.nlm.nih.gov/9113347/"},
+            {"title": "Afamelanotide, an agonistic analog of α-melanocyte-stimulating hormone, in dermal phototoxicity of erythropoietic protoporphyria", "pmid": "21073357", "url": "https://pubmed.ncbi.nlm.nih.gov/21073357/"}
+        ]
+    },
+    {
+        "name": "HCG",
+        "vial_mg": 5.0,
+        "water_ml": 1.0,
+        "dose": 250.0,
+        "unit": "mcg",
+        "freq": "2-3x weekly",
+        "notes": "Human Chorionic Gonadotropin, an LH-mimetic glycoprotein hormone used to stimulate Leydig cell testosterone production and maintain testicular function/fertility (e.g. alongside TRT or for secondary hypogonadism). NOTE: real-world HCG is conventionally dosed in International Units (IU), not mg/mcg by mass -- a common vial is labeled '5,000 IU', not '5mg'. The mg/mcg figures here are placeholders forced into this app's mg-based schema, not a validated IU conversion -- verify actual IU dosing against your product's labeling.",
+        "schedule": [
+            ("Week 1-4", 250.0, "mcg"),
+            ("Week 5+ (Maintenance)", 250.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Human chorionic gonadotropin treatment: a viable option for management of secondary hypogonadism and male infertility", "pmid": "33345656", "url": "https://pubmed.ncbi.nlm.nih.gov/33345656/"},
+            {"title": "Evaluating the Combination of Human Chorionic Gonadotropin and Clomiphene Citrate in Treatment of Male Hypogonadotropic Hypogonadism: A Prospective Study", "pmid": "34164348", "url": "https://pubmed.ncbi.nlm.nih.gov/34164348/"}
+        ]
+    },
+    {
+        "name": "GHRP-2",
+        "vial_mg": 5.0,
+        "water_ml": 2.5,
+        "dose": 100.0,
+        "unit": "mcg",
+        "freq": "daily (1-3x, pre-meal)",
+        "notes": "Ghrelin-receptor-agonist growth hormone secretagogue (pharmaceutical name pralmorelin); also clinically used as a diagnostic agent for GH deficiency. Increases appetite alongside GH release, and is often paired with a GHRH analog like CJC-1295. Standard dose: 100mcg - 300mcg, 1-3 times daily.",
+        "schedule": [
+            ("Week 1-4", 100.0, "mcg"),
+            ("Week 5-8", 200.0, "mcg"),
+            ("Week 9-12", 300.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Growth hormone releasing peptide-2 (GHRP-2), like ghrelin, increases food intake in healthy men", "pmid": "15699539", "url": "https://pubmed.ncbi.nlm.nih.gov/15699539/"},
+            {"title": "Pralmorelin: GHRP 2, GPA 748, growth hormone-releasing peptide 2, KP-102 D, KP-102 LN, KP-102D, KP-102LN", "pmid": "15230633", "url": "https://pubmed.ncbi.nlm.nih.gov/15230633/"}
+        ]
+    },
+    {
+        "name": "GHRP-6",
+        "vial_mg": 5.0,
+        "water_ml": 2.5,
+        "dose": 100.0,
+        "unit": "mcg",
+        "freq": "daily (1-3x)",
+        "notes": "Hexapeptide growth hormone secretagogue acting via the ghrelin receptor; associated with pronounced appetite stimulation and cytoprotective effects reported alongside GH release. Standard dose: 100mcg - 300mcg, 1-3 times daily.",
+        "schedule": [
+            ("Week 1-4", 100.0, "mcg"),
+            ("Week 5-8", 200.0, "mcg"),
+            ("Week 9-12", 300.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Growth hormone releasing peptide (GHRP-6) stimulates phosphatidylinositol (PI) turnover in human pituitary somatotroph cells", "pmid": "7772238", "url": "https://pubmed.ncbi.nlm.nih.gov/7772238/"},
+            {"title": "Growth hormone-releasing effect of oral growth hormone-releasing peptide 6 (GHRP-6) administration in children with short stature", "pmid": "7581965", "url": "https://pubmed.ncbi.nlm.nih.gov/7581965/"}
+        ]
+    },
+    {
+        "name": "Thymosin Alpha-1",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 1.6,
+        "unit": "mg",
+        "freq": "2x weekly",
+        "notes": "Immunomodulatory thymic peptide (marketed outside the US as Zadaxin) studied for immune restoration, vaccine-response enhancement, and adjunct use in infections/oncology. Standard clinical dose: 1.6mg subcutaneously twice weekly.",
+        "schedule": [
+            ("Week 1-4", 1.6, "mg"),
+            ("Week 5+ (Maintenance)", 1.6, "mg"),
+        ],
+        "sources": [
+            {"title": "Immune Modulation with Thymosin Alpha 1 Treatment", "pmid": "27450734", "url": "https://pubmed.ncbi.nlm.nih.gov/27450734/"},
+            {"title": "Comprehensive Review of the Safety and Efficacy of Thymosin Alpha 1 in Human Clinical Trials", "pmid": "38308608", "url": "https://pubmed.ncbi.nlm.nih.gov/38308608/"}
+        ]
+    },
+    {
+        "name": "Thymalin",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 5.0,
+        "unit": "mg",
+        "freq": "daily (short course)",
+        "notes": "Calf thymus-derived peptide bioregulator (Khavinson/Morozov) studied for immune restoration and geroprotective effects in aging populations, including a long-term Russian cohort study. Standard protocol: 5mg - 10mg daily for a 10-day course, repeated periodically.",
+        "schedule": [
+            ("Days 1-10 (Course)", 5.0, "mg"),
+            ("Days 1-10 (Higher-Dose Course)", 10.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Thymalin: Activation of Differentiation of Human Hematopoietic Stem Cells", "pmid": "33237528", "url": "https://pubmed.ncbi.nlm.nih.gov/33237528/"},
+            {"title": "[Geroprotective effect of thymalin and epithalamin]", "pmid": "12577695", "url": "https://pubmed.ncbi.nlm.nih.gov/12577695/"}
+        ]
+    },
+    {
+        "name": "Oxytocin",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 40.0,
+        "unit": "mcg",
+        "freq": "daily to 2x daily",
+        "notes": "Nonapeptide hormone studied for prosocial, anxiolytic, and analgesic effects via subcutaneous administration. Standard research dose: 40mcg - 100mcg subcutaneously, once or twice daily.",
+        "schedule": [
+            ("Week 1-2", 40.0, "mcg"),
+            ("Week 3+", 100.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Subcutaneous Oxytocin Injection Reduces Heat Pain: A Randomized-Controlled Trial", "pmid": "38642595", "url": "https://pubmed.ncbi.nlm.nih.gov/38642595/"},
+            {"title": "Oxytocin: pharmacology and clinical application", "pmid": "3534134", "url": "https://pubmed.ncbi.nlm.nih.gov/3534134/"}
+        ]
+    },
+    {
+        "name": "VIP",
+        "vial_mg": 5.0,
+        "water_ml": 5.0,
+        "dose": 50.0,
+        "unit": "mcg",
+        "freq": "as directed (intranasal), up to 4x daily",
+        "notes": "Vasoactive Intestinal Peptide, a 28-amino-acid neuropeptide with vasodilatory, immunomodulatory, and neuroprotective properties; used off-label intranasally in some chronic inflammatory response syndrome (CIRS) protocols. Standard dose: 50mcg per spray, up to 4 times daily.",
+        "schedule": [
+            ("Week 1-2", 50.0, "mcg"),
+            ("Week 3+ (Maintenance)", 50.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Vasoactive intestinal peptide in man: pharmacokinetics, metabolic and circulatory effects", "pmid": "730072", "url": "https://pubmed.ncbi.nlm.nih.gov/730072/"},
+            {"title": "Structure-activity relationship of vasoactive intestinal peptide (VIP): potent agonists and potential clinical applications", "pmid": "18172612", "url": "https://pubmed.ncbi.nlm.nih.gov/18172612/"}
+        ]
+    },
+    {
+        "name": "SS-31 (Elamipretide)",
+        "vial_mg": 50.0,
+        "water_ml": 2.0,
+        "dose": 4.0,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Mitochondria-targeted tetrapeptide studied for age-related mitochondrial dysfunction, oxidative stress, and exercise tolerance; binds cardiolipin in the inner mitochondrial membrane. Standard research dose: 4mg - 10mg daily via subcutaneous injection.",
+        "schedule": [
+            ("Week 1-2", 4.0, "mg"),
+            ("Week 3-4", 8.0, "mg"),
+            ("Week 5+ (Maintenance)", 10.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Improving mitochondrial function with SS-31 reverses age-related redox stress and improves exercise tolerance in aged mice", "pmid": "30597195", "url": "https://pubmed.ncbi.nlm.nih.gov/30597195/"},
+            {"title": "The mitochondrially targeted peptide elamipretide (SS-31) improves ADP sensitivity in aged mitochondria by increasing uptake through the adenine nucleotide translocator (ANT)", "pmid": "37462785", "url": "https://pubmed.ncbi.nlm.nih.gov/37462785/"}
+        ]
+    },
+    {
+        "name": "Snap-8",
+        "vial_mg": 50.0,
+        "water_ml": 10.0,
+        "dose": 5.0,
+        "unit": "mg",
+        "freq": "daily (topical)",
+        "notes": "Acetyl Glutamyl Heptapeptide-1, a synthetic octapeptide derived from SNAP-25 fragments used in topical cosmetic formulations to reduce expression-line depth (Botox-alternative mechanism). Primarily applied topically as a diluted serum rather than injected; no PubMed-indexed clinical studies specific to Snap-8 were found (only cosmetic-industry/patent literature) -- treat dosing here as a rough topical-dilution reference only.",
+        "schedule": [
+            ("Week 1-4 (Daily Topical)", 5.0, "mg"),
+        ],
+        "sources": []
+    },
+    {
+        "name": "KPV",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 250.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "Alpha-MSH-derived anti-inflammatory tripeptide (Lysine-Proline-Valine) studied for gut/skin inflammation via NF-kB and PepT1-mediated pathways. Standard research dose: 250mcg - 500mcg daily.",
+        "schedule": [
+            ("Week 1-2", 250.0, "mcg"),
+            ("Week 3-4", 500.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "PepT1-mediated tripeptide KPV uptake reduces intestinal inflammation", "pmid": "18061177", "url": "https://pubmed.ncbi.nlm.nih.gov/18061177/"},
+            {"title": "Alpha-melanocyte-related tripeptide, Lys-d-Pro-Val, ameliorates endotoxin-induced nuclear factor kappaB translocation and activation", "pmid": "11256945", "url": "https://pubmed.ncbi.nlm.nih.gov/11256945/"}
+        ]
+    },
+    {
+        "name": "AHK-Cu",
+        "vial_mg": 50.0,
+        "water_ml": 5.0,
+        "dose": 1.0,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Copper Tripeptide-3, a GHK-Cu-related copper-binding tripeptide studied primarily for hair follicle/dermal papilla stimulation and skin rejuvenation, mostly used topically. No PubMed-indexed primary studies specific to AHK-Cu were found via search (only cosmetic-industry sources) -- data here is a rough community-dosing reference only.",
+        "schedule": [
+            ("Week 1-4", 1.0, "mg"),
+            ("Week 5-8", 2.0, "mg"),
+        ],
+        "sources": []
+    },
+    {
+        "name": "Ara-290 (Cibinetide)",
+        "vial_mg": 4.0,
+        "water_ml": 2.0,
+        "dose": 2.0,
+        "unit": "mg",
+        "freq": "3x weekly",
+        "notes": "Non-hematopoietic erythropoietin-derived peptide (Cibinetide) studied for tissue-protective and neuropathic pain relief via the innate repair receptor, without EPO's hematopoietic/cardiovascular side effects. Standard research dose: 1mg - 4mg, 3 times weekly.",
+        "schedule": [
+            ("Week 1-4", 1.0, "mg"),
+            ("Week 5-8", 2.0, "mg"),
+            ("Week 9+ (Maintenance)", 4.0, "mg"),
+        ],
+        "sources": [
+            {"title": "ARA 290, a peptide derived from the tertiary structure of erythropoietin, produces long-term relief of neuropathic pain coupled with suppression of the spinal microglia response", "pmid": "24529189", "url": "https://pubmed.ncbi.nlm.nih.gov/24529189/"},
+            {"title": "ARA290, a peptide derived from the tertiary structure of erythropoietin, produces long-term relief of neuropathic pain: an experimental study in rats and β-common receptor knockout mice", "pmid": "21873879", "url": "https://pubmed.ncbi.nlm.nih.gov/21873879/"}
+        ]
+    },
+    {
+        "name": "LL-37",
+        "vial_mg": 5.0,
+        "water_ml": 2.0,
+        "dose": 200.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "Human cathelicidin antimicrobial peptide with broad-spectrum antimicrobial, immunomodulatory, and wound-healing activity. Standard research dose: 100mcg - 200mcg daily; human safety/efficacy data remain limited.",
+        "schedule": [
+            ("Week 1-2", 100.0, "mcg"),
+            ("Week 3-4", 200.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "LL-37, the only human member of the cathelicidin family of antimicrobial peptides", "pmid": "16716248", "url": "https://pubmed.ncbi.nlm.nih.gov/16716248/"},
+            {"title": "LL-37: Cathelicidin-related antimicrobial peptide with pleiotropic activity", "pmid": "27117377", "url": "https://pubmed.ncbi.nlm.nih.gov/27117377/"}
+        ]
+    },
+    {
+        "name": "Adipotide",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 0.5,
+        "unit": "mg",
+        "freq": "3x weekly",
+        "notes": "Prohibitin-targeted proapoptotic peptide (CKGGRAKDC-GG-D(KLAKLAK)2) that induces apoptosis in white-adipose-tissue vasculature. Demonstrated obesity reversal in rodent/primate studies but with documented reversible renal effects in the primate trial -- investigational, not human-approved, and carries real safety signals distinct from most other entries in this list.",
+        "schedule": [
+            ("Week 1-2", 0.25, "mg"),
+            ("Week 3-4", 0.5, "mg"),
+        ],
+        "sources": [
+            {"title": "Reversal of obesity by targeted ablation of adipose tissue", "pmid": "15133506", "url": "https://pubmed.ncbi.nlm.nih.gov/15133506/"},
+            {"title": "Rapid and weight-independent improvement of glucose tolerance induced by a peptide designed to elicit apoptosis in adipose tissue endothelium", "pmid": "22733798", "url": "https://pubmed.ncbi.nlm.nih.gov/22733798/"}
+        ]
+    },
+    {
+        "name": "Kisspeptin-10",
+        "vial_mg": 5.0,
+        "water_ml": 2.0,
+        "dose": 100.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "Potent stimulator of the hypothalamic-pituitary-gonadal axis via GnRH secretion; studied for reproductive hormone/fertility research and hypogonadism. Standard research dose: 100mcg - 200mcg daily.",
+        "schedule": [
+            ("Week 1-2", 100.0, "mcg"),
+            ("Week 3-4", 200.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "The effects of kisspeptin-10 on reproductive hormone release show sexual dimorphism in humans", "pmid": "21976724", "url": "https://pubmed.ncbi.nlm.nih.gov/21976724/"},
+            {"title": "Kisspeptin-10 is a potent stimulator of LH and increases pulse frequency in men", "pmid": "21632807", "url": "https://pubmed.ncbi.nlm.nih.gov/21632807/"}
+        ]
+    },
+    {
+        "name": "5-Amino-1MQ",
+        "vial_mg": 50.0,
+        "water_ml": 5.0,
+        "dose": 10.0,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Small-molecule NNMT (nicotinamide N-methyltransferase) inhibitor studied preclinically for adipose-tissue fat metabolism and weight management; not a peptide, and most commonly taken orally in the research community rather than injected. Standard protocol: 10mg daily, cycled 4-8 weeks.",
+        "schedule": [
+            ("Week 1-8 (Daily)", 10.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Small molecule inhibitor of nicotinamide N-methyltransferase shows anti-proliferative activity in HeLa cells", "pmid": "33645410", "url": "https://pubmed.ncbi.nlm.nih.gov/33645410/"},
+            {"title": "Reduced calorie diet combined with NNMT inhibition establishes a distinct microbiome in DIO mice", "pmid": "35013352", "url": "https://pubmed.ncbi.nlm.nih.gov/35013352/"}
+        ]
+    },
+    {
+        "name": "Dihexa",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 2.0,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Angiotensin IV analog and HGF/c-Met system activator studied preclinically for cognitive/neuroprotective effects; poor water solubility means it is typically compounded sublingually or orally in practice rather than injected. Standard research dose: 2mg - 4mg daily.",
+        "schedule": [
+            ("Week 1-2", 2.0, "mg"),
+            ("Week 3-4", 4.0, "mg"),
+        ],
+        "sources": [
+            {"title": "The Brain Hepatocyte Growth Factor/c-Met Receptor System: A New Target for the Treatment of Alzheimer's Disease", "pmid": "25649658", "url": "https://pubmed.ncbi.nlm.nih.gov/25649658/"},
+            {"title": "The development of small molecule angiotensin IV analogs to treat Alzheimer's and Parkinson's diseases", "pmid": "25455861", "url": "https://pubmed.ncbi.nlm.nih.gov/25455861/"}
+        ]
+    },
+    {
+        "name": "Mazdutide",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 3.0,
+        "unit": "mg",
+        "freq": "weekly",
+        "notes": "GLP-1/glucagon receptor dual agonist studied for weight management and type 2 diabetes. Standard titration starts at 3mg weekly, escalating toward a 9mg maintenance dose as tolerated.",
+        "schedule": [
+            ("Week 1-4 (Titration)", 3.0, "mg"),
+            ("Week 5-8 (Titration)", 4.5, "mg"),
+            ("Week 9-12 (Titration)", 6.0, "mg"),
+            ("Week 13+ (Maintenance)", 9.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Once-Weekly Mazdutide in Chinese Adults with Obesity or Overweight", "pmid": "40421736", "url": "https://pubmed.ncbi.nlm.nih.gov/40421736/"},
+            {"title": "A phase 2 randomised controlled trial of mazdutide in Chinese overweight adults or adults with obesity", "pmid": "38092790", "url": "https://pubmed.ncbi.nlm.nih.gov/38092790/"}
+        ]
+    },
+    {
+        "name": "Survodutide",
+        "vial_mg": 5.0,
+        "water_ml": 2.0,
+        "dose": 0.6,
+        "unit": "mg",
+        "freq": "weekly",
+        "notes": "Glucagon receptor/GLP-1 receptor dual agonist studied for obesity and MASH (fatty liver disease). Slow-titration schedule starting at 0.6mg weekly, escalating toward a 3.6mg-6.0mg maintenance dose as tolerated.",
+        "schedule": [
+            ("Week 1-4 (Titration)", 0.6, "mg"),
+            ("Week 5-8 (Titration)", 1.2, "mg"),
+            ("Week 9-16 (Titration)", 2.4, "mg"),
+            ("Week 17+ (Maintenance)", 3.6, "mg"),
+        ],
+        "sources": [
+            {"title": "Survodutide Once Weekly for the Treatment of Adults with Obesity", "pmid": "42253238", "url": "https://pubmed.ncbi.nlm.nih.gov/42253238/"},
+            {"title": "A Phase 2 Randomized Trial of Survodutide in MASH and Fibrosis", "pmid": "38847460", "url": "https://pubmed.ncbi.nlm.nih.gov/38847460/"}
+        ]
+    },
+    {
+        "name": "Cartalax",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 100.0,
+        "unit": "mcg",
+        "freq": "daily (short course)",
+        "notes": "Synthetic tripeptide bioregulator (Ala-Glu-Asp, Khavinson-lab series) studied preclinically for cartilage/chondrocyte support, in the same family as Epithalon and Pinealon. Standard protocol: 100mcg - 150mcg daily for a 10-day course, repeated periodically. No registered human clinical trials or peptide-specific dose-ranging data exist for this specific peptide.",
+        "schedule": [
+            ("Days 1-10 (Course 1)", 100.0, "mcg"),
+            ("Days 1-10 (Course 2, next cycle)", 150.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Peptide bioregulators: the new class of geroprotectors. Message 2. Clinical studies results", "pmid": "24003726", "url": "https://pubmed.ncbi.nlm.nih.gov/24003726/"}
+        ]
+    },
+    {
+        "name": "Melatonin",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 3.0,
+        "unit": "mg",
+        "freq": "nightly (before bed)",
+        "notes": "Pineal hormone regulating circadian rhythm/sleep onset; not a peptide, and far more commonly taken orally than injected. Standard dose: 1mg - 5mg nightly, roughly 30-60 minutes before bed.",
+        "schedule": [
+            ("Week 1-2", 1.0, "mg"),
+            ("Week 3+", 3.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Optimizing the Time and Dose of Melatonin as a Sleep-Promoting Drug: A Systematic Review of Randomized Controlled Trials and Dose-Response Meta-Analysis", "pmid": "38888087", "url": "https://pubmed.ncbi.nlm.nih.gov/38888087/"},
+            {"title": "Meta-analysis: melatonin for the treatment of primary sleep disorders", "pmid": "23691095", "url": "https://pubmed.ncbi.nlm.nih.gov/23691095/"}
+        ]
+    },
+    {
+        "name": "Vitamin B12 (Methylcobalamin)",
+        "vial_mg": 5.0,
+        "water_ml": 1.0,
+        "dose": 1000.0,
+        "unit": "mcg",
+        "freq": "weekly",
+        "notes": "Methylcobalamin (active form of vitamin B12); not a peptide, but a common injectable alongside peptide protocols for energy/neuropathy support. Standard IM/SC dose: 500mcg - 1500mcg weekly.",
+        "schedule": [
+            ("Week 1-4", 500.0, "mcg"),
+            ("Week 5+", 1000.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Vitamin B12 Supplementation in Diabetic Neuropathy: A 1-Year, Randomized, Double-Blind, Placebo-Controlled Trial", "pmid": "33513879", "url": "https://pubmed.ncbi.nlm.nih.gov/33513879/"},
+            {"title": "A randomized, open labeled study comparing the serum levels of cobalamin after three doses of 500 mcg vs. a single dose methylcobalamin of 1500 mcg in patients with peripheral neuropathy", "pmid": "30013732", "url": "https://pubmed.ncbi.nlm.nih.gov/30013732/"}
+        ]
+    },
+    {
+        "name": "CJC-1295 / Ipamorelin Blend",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 200.0,
+        "unit": "mcg",
+        "freq": "daily (before bed)",
+        "notes": "Pre-mixed 1:1 blend of CJC-1295 (no DAC) and Ipamorelin, combining a GHRH analog with a selective GH secretagogue for a synergistic GH pulse. Standard combined dose: 200mcg (100mcg + 100mcg) - 300mcg (150mcg + 150mcg) daily, typically before bed.",
+        "schedule": [
+            ("Week 1-4", 200.0, "mcg"),
+            ("Week 5-8", 300.0, "mcg"),
+        ],
+        "sources": [
+            {"title": "Prolonged stimulation of GH and IGF-I secretion by CJC-1295 in healthy adults", "pmid": "16352683", "url": "https://pubmed.ncbi.nlm.nih.gov/16352683/"},
+            {"title": "Ipamorelin, the first selective growth hormone secretagogue", "pmid": "9849822", "url": "https://pubmed.ncbi.nlm.nih.gov/9849822/"}
+        ]
+    },
+    {
+        "name": "Cagrilintide / Semaglutide Blend",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 0.5,
+        "unit": "mg",
+        "freq": "weekly",
+        "notes": "Pre-mixed combination of Cagrilintide and Semaglutide (a community analog of Novo Nordisk's investigational dual amylin/GLP-1 combination). Standard titration starts at 0.5mg combined (0.25mg + 0.25mg) weekly, following a semaglutide-style dose escalation.",
+        "schedule": [
+            ("Week 1-4 (Titration)", 0.5, "mg"),
+            ("Week 5-8 (Titration)", 1.0, "mg"),
+            ("Week 9-12 (Titration)", 2.0, "mg"),
+            ("Week 13+ (Maintenance)", 2.4, "mg"),
+        ],
+        "sources": [
+            {"title": "Development of Cagrilintide, a Long-Acting Amylin Analogue", "pmid": "34288673", "url": "https://pubmed.ncbi.nlm.nih.gov/34288673/"},
+            {"title": "Safety, tolerability, pharmacokinetics, and pharmacodynamics of concomitant administration of multiple doses of cagrilintide with semaglutide 2.4 mg for weight management: a randomised, controlled, phase 1b trial", "pmid": "33894838", "url": "https://pubmed.ncbi.nlm.nih.gov/33894838/"}
+        ]
+    },
+    {
+        "name": "BPC-157 / TB-500 Blend",
+        "vial_mg": 20.0,
+        "water_ml": 2.0,
+        "dose": 1.0,
+        "unit": "mg",
+        "freq": "2x weekly",
+        "notes": "Pre-mixed regenerative blend combining BPC-157 and TB-500 (Thymosin Beta-4 fragment) for synergistic tissue repair, recovery, and reduced inflammation. Standard combined dose: 0.5mg - 1mg, 2-3 times weekly.",
+        "schedule": [
+            ("Week 1-4 (Loading)", 1.0, "mg"),
+            ("Week 5+ (Maintenance)", 0.5, "mg"),
+        ],
+        "sources": [
+            {"title": "Emerging Use of BPC-157 in Orthopaedic Sports Medicine", "pmid": "40756949", "url": "https://pubmed.ncbi.nlm.nih.gov/40756949/"},
+            {"title": "Thymosin beta4 accelerates wound healing", "pmid": "10469335", "url": "https://pubmed.ncbi.nlm.nih.gov/10469335/"}
+        ]
+    },
+    {
         "name": "Custom / Other",
         "vial_mg": 5.0,
         "water_ml": 2.0,
