@@ -526,6 +526,7 @@ class PeptideCalculatorApp(App):
                             yield Button("25mg", id="vial-btn-25")
                             yield Button("30mg", id="vial-btn-30")
                             yield Button("50mg", id="vial-btn-50")
+                            yield Button("60mg", id="vial-btn-60")
                         yield Input(value="5.0", placeholder="Enter mg...", id="vial-size-input")
                         
                         yield Label("Bacteriostatic Water (mL added):", classes="input-label")
