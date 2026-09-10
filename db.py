@@ -903,6 +903,66 @@ DEFAULT_PEPTIDES = [
         ]
     },
     {
+        "name": "PNC-27",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 1.0,
+        "unit": "mg",
+        "freq": "daily",
+        "notes": "Chimeric p53-penetratin peptide (p53 HDM-2-binding domain fused to a cell-penetrating leader) studied preclinically as an anti-cancer agent -- selectively binds membrane-bound HDM-2 on cancer cells, forming pores and inducing necrosis, while sparing normal cells that lack surface HDM-2. Investigational only; no human clinical trials or established human dosing exist. Community research dose: 0.5mg - 1mg daily (extrapolated from in vitro/animal studies, not clinically validated).",
+        "schedule": [
+            ("Week 1-2", 0.5, "mg"),
+            ("Week 3+", 1.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Anticancer peptide PNC-27 adopts an HDM-2-binding conformation and kills cancer cells by binding to HDM-2 in their membranes", "pmid": "20080680", "url": "https://pubmed.ncbi.nlm.nih.gov/20080680/"},
+            {"title": "Anti-Cancer Peptide PNC-27 Kills Cancer Cells by Unique Interactions with Plasma Membrane-Bound hdm-2 and with Mitochondrial Membranes Causing Mitochondrial Disruption", "pmid": "38802154", "url": "https://pubmed.ncbi.nlm.nih.gov/38802154/"}
+        ]
+    },
+    {
+        "name": "FOXO4-DRI",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 5.0,
+        "unit": "mg",
+        "freq": "3x weekly (short course)",
+        "notes": "Retro-inverso senolytic peptide that disrupts the FOXO4-p53 interaction, selectively triggering apoptosis in senescent cells while sparing healthy tissue. Studied preclinically in aging, cartilage, and pulmonary fibrosis models. Investigational only; no human clinical trials or established human dosing exist. Community research protocol: 5mg, 3 times weekly for a short course (e.g. 1-2 weeks), cycled periodically.",
+        "schedule": [
+            ("Days 1-14 (Course)", 5.0, "mg"),
+        ],
+        "sources": [
+            {"title": "Senolytic Peptide FOXO4-DRI Selectively Removes Senescent Cells From in vitro Expanded Human Chondrocytes", "pmid": "33996787", "url": "https://pubmed.ncbi.nlm.nih.gov/33996787/"},
+            {"title": "Targeting the FOXO4-p53 axis by retro-inverso peptide senolytic agents: a pharmacological strategy to mitigate brain aging and cognitive decline", "pmid": "42024235", "url": "https://pubmed.ncbi.nlm.nih.gov/42024235/"}
+        ]
+    },
+    {
+        "name": "LC216 (Lipotropic/MIC Blend)",
+        "vial_mg": 300.0,
+        "water_ml": 10.0,
+        "dose": 30.0,
+        "unit": "mg",
+        "freq": "1-2x weekly",
+        "notes": "Generic multi-component lipotropic (MIC-style) blend combining lipotropic agents such as Methionine, Inositol, and Choline (often with added B12/B-complex) to support hepatic fat metabolism; supplier-specific proprietary formulas vary in exact composition and ratio, and this entry's vial/dose figures are a rough placeholder, not a specific validated formula -- adjust to match your actual product's label. Controlled clinical evidence for the combined formulation's weight-loss effect is limited, though individual components have established roles in hepatic lipid metabolism. Typically sold pre-mixed as a ready-to-inject liquid rather than reconstituted from powder.",
+        "schedule": [
+            ("Week 1-4", 30.0, "mg"),
+        ],
+        "sources": []
+    },
+    {
+        "name": "Adamax",
+        "vial_mg": 10.0,
+        "water_ml": 2.0,
+        "dose": 250.0,
+        "unit": "mcg",
+        "freq": "daily",
+        "notes": "Supplier-listed nootropic product; the specific active compound was not confirmed, so no literature-backed dosing or citations could be sourced for it. Values here are a generic peptide-nootropic placeholder (similar scale to the other intranasal/subcutaneous nootropic peptides in this catalog, e.g. Semax/Selank) -- verify actual composition and dosing against your product's label before use.",
+        "schedule": [
+            ("Week 1-2", 250.0, "mcg"),
+            ("Week 3-4", 500.0, "mcg"),
+        ],
+        "sources": []
+    },
+    {
         "name": "Custom / Other",
         "vial_mg": 5.0,
         "water_ml": 2.0,
