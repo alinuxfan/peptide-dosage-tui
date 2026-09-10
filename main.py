@@ -24,29 +24,43 @@ import db
 
 # Compact ASCII syringe drawing helper
 def make_syringe_display(units: float) -> str:
+    BARREL_WIDTH = 40  # character width of the barrel gauge
+    BARREL_START = len("Needle ──┨ ")  # column where the barrel content begins
+
     if units <= 0:
         filled = 0
     elif units > 100:
-        filled = 40  # Cap at 100 units visually
+        filled = BARREL_WIDTH  # Cap at 100 units visually
     else:
-        filled = int(round((units / 100.0) * 40.0))  # 40 character width
-        
-    empty = 40 - filled
-    
+        filled = int(round((units / 100.0) * BARREL_WIDTH))
+
+    empty = BARREL_WIDTH - filled
+
     stick_len = max(0, filled - 1)
     stick = "=" * stick_len
     rubber = "█" if filled > 0 else ""
     liquid = "░" * max(0, filled - stick_len - 1)
     barrel_content = f"{stick}{rubber}{liquid}{'.' * empty}"
-    
-    top_line = "           0  20  40  60  80 100 Units"
+
+    # Build the ruler so its tick marks line up with the same BARREL_START +
+    # units-to-column scale used by the marker below, instead of a fixed
+    # string that drifted out of sync with the barrel width.
+    ruler_chars = [" "] * BARREL_START
+    for label_units in (0, 20, 40, 60, 80, 100):
+        pos = BARREL_START + round(label_units / 100.0 * BARREL_WIDTH)
+        label = str(label_units)
+        if pos + len(label) > len(ruler_chars):
+            ruler_chars.extend([" "] * (pos + len(label) - len(ruler_chars)))
+        ruler_chars[pos:pos + len(label)] = label
+    top_line = "".join(ruler_chars) + " Units"
+
     mid_line = f"Needle ──┨ {barrel_content} ┠─════ Plunger"
-    
-    marker_pos = 11 + filled
+
+    marker_pos = BARREL_START + filled
     bottom_line = " " * marker_pos + f"▲ {units:.1f}U"
     if units > 100:
         bottom_line += " [!] EXCEEDS 1mL CAPACITY"
-        
+
     return f"{top_line}\n{mid_line}\n{bottom_line}"
 
 
