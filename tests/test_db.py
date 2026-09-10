@@ -194,3 +194,30 @@ def test_get_protocol_adherence_next_due_falls_back_to_created_at_when_never_log
     # never logged -> anchored on created_at (just now) + 1 day (daily)
     days_until = (entry["next_due_at"] - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 86400.0
     assert 0.9 < days_until < 1.1
+
+
+def test_export_dose_log_csv(fresh_db, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.log_dose(pid, None, "BPC-157", 250.0, "mcg", notes="left thigh")
+    fresh_db.log_dose(pid, None, "Ipamorelin / CJC-1295", 300.0, "mcg")
+
+    filename = fresh_db.export_dose_log_csv(pid)
+    assert filename is not None
+
+    import csv
+    with open(tmp_path / filename, newline="") as f:
+        rows = list(csv.reader(f))
+
+    assert rows[0] == ["ID", "Peptide", "Dose Amount", "Dose Unit", "Taken At", "Notes"]
+    assert len(rows) == 3  # header + 2 entries
+    peptides = {row[1] for row in rows[1:]}
+    assert peptides == {"BPC-157", "Ipamorelin / CJC-1295"}
+    notes_by_peptide = {row[1]: row[5] for row in rows[1:]}
+    assert notes_by_peptide["BPC-157"] == "left thigh"
+    assert notes_by_peptide["Ipamorelin / CJC-1295"] == ""
+
+
+def test_export_dose_log_csv_unknown_profile(fresh_db, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert fresh_db.export_dose_log_csv(99999) is None

@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import os
+import csv
 from datetime import datetime, timezone
 
 import calc
@@ -893,6 +894,39 @@ def export_person_reference_sheet(profile_id):
                 notes_suffix = f" — {entry['notes']}" if entry['notes'] else ""
                 f.write(f"  {entry['taken_at']}  {entry['peptide_name']}: {entry['dose_amount']} {entry['dose_unit']}{notes_suffix}\n")
             f.write("\n" + "=" * 72 + "\n")
+
+    return filename
+
+
+def export_dose_log_csv(profile_id):
+    """Export a profile's full dose log to a CSV file in the current working
+    directory. Returns the filename, or None if the profile doesn't exist."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM profiles WHERE id = ?", (profile_id,))
+    prof = cursor.fetchone()
+    conn.close()
+    if not prof:
+        return None
+    profile_name = prof["name"]
+
+    dose_log = get_dose_log(profile_id)
+
+    filename = f"dose_log_{profile_name.lower().replace(' ', '_')}.csv"
+    filepath = os.path.join(os.getcwd(), filename)
+
+    with open(filepath, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["ID", "Peptide", "Dose Amount", "Dose Unit", "Taken At", "Notes"])
+        for entry in dose_log:
+            writer.writerow([
+                entry["id"],
+                entry["peptide_name"],
+                entry["dose_amount"],
+                entry["dose_unit"],
+                entry["taken_at"],
+                entry["notes"] or "",
+            ])
 
     return filename
 

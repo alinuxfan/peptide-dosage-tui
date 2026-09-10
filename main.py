@@ -299,7 +299,7 @@ DataTable {
     height: 3;
 }
 
-#save-schedule-btn, #export-patient-sheet-btn {
+#save-schedule-btn, #export-patient-sheet-btn, #export-dose-log-csv-btn {
     background: #10b981;
     color: #0f172a;
     text-style: bold;
@@ -610,6 +610,7 @@ class PeptideCalculatorApp(App):
                 with Vertical():
                     with Container(classes="action-bar"):
                         yield Label("Dose History & Adherence (Active Profile)", classes="action-title")
+                        yield Button("📄 Export CSV", id="export-dose-log-csv-btn")
                         yield Button("🗑️ Delete Entry", id="delete-log-btn")
                     yield Label("Adherence Summary", classes="title-label")
                     yield DataTable(id="adherence-table")
@@ -617,8 +618,12 @@ class PeptideCalculatorApp(App):
                     yield DataTable(id="dose-log-table")
 
             with TabPane("Peptide Reference & Cited Sources", id="reference-tab"):
-                with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
-                    yield Label("Loading reference database...", classes="info-title")
+                with Vertical():
+                    with Container(classes="action-bar"):
+                        yield Label("Search Peptide Reference:", classes="action-title")
+                        yield Input(placeholder="Filter by name or notes (e.g. GLP-1, weight loss, sleep)...", id="reference-search-input")
+                    with ScrollableContainer(classes="info-pane", id="reference-scroll-container"):
+                        yield Label("Loading reference database...", classes="info-title")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -770,11 +775,22 @@ class PeptideCalculatorApp(App):
 
         self.push_screen(ConfirmScreen("Delete this dose log entry?"), handle_confirm)
 
-    def populate_reference_tab(self) -> None:
+    def populate_reference_tab(self, filter_text: str = "") -> None:
         container = self.query_one("#reference-scroll-container", ScrollableContainer)
         container.remove_children()
-        
+
         peptides = db.get_peptides()
+        needle = filter_text.strip().lower()
+        if needle:
+            peptides = [
+                p for p in peptides
+                if needle in p['name'].lower() or needle in (p['notes'] or "").lower()
+            ]
+
+        if not peptides:
+            container.mount(Label(f"No peptides match '{filter_text.strip()}'.", classes="info-title"))
+            return
+
         for p in peptides:
             children = [
                 Label(f"🔬 {p['name']} Reference & Clinical Guidelines", classes="info-title"),
@@ -824,6 +840,10 @@ class PeptideCalculatorApp(App):
         self.update_schedule_table()
 
     def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "reference-search-input":
+            self.populate_reference_tab(event.value)
+            return
+
         try:
             val = float(event.input.value) if event.input.value else 0.0
             if event.input.id == "vial-size-input":
@@ -870,6 +890,8 @@ class PeptideCalculatorApp(App):
             self.log_selected_protocol_dose()
         elif btn_id == "delete-log-btn":
             self.delete_selected_dose_log_entry()
+        elif btn_id == "export-dose-log-csv-btn":
+            self.export_dose_log_csv()
         elif btn_id == "save-schedule-btn":
             self.save_schedule_to_file()
 
@@ -947,6 +969,13 @@ class PeptideCalculatorApp(App):
             self.notify(f"Exported patient summary to: {filename}", timeout=4.0)
         else:
             self.notify("Error exporting summary sheet.", severity="error")
+
+    def export_dose_log_csv(self) -> None:
+        filename = db.export_dose_log_csv(self.active_profile_id)
+        if filename:
+            self.notify(f"Exported dose log to: {filename}", timeout=4.0)
+        else:
+            self.notify("Error exporting dose log.", severity="error")
 
     def delete_selected_patient_protocol(self) -> None:
         table = self.query_one("#patient-protocols-table", DataTable)
