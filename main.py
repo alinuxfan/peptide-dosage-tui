@@ -12,6 +12,7 @@ from textual.widgets import (
     Label,
     Button,
     Select,
+    SelectionList,
     Static,
     DataTable,
     TabbedContent,
@@ -216,6 +217,19 @@ SelectCurrent {
     border-bottom: solid #334155;
 }
 
+.global-profile-bar {
+    layout: horizontal;
+    height: 3;
+    align: left middle;
+    padding: 0 1;
+    background: #1e293b;
+    border-bottom: solid #38bdf8;
+}
+
+.global-profile-bar .action-title {
+    margin-right: 1;
+}
+
 .patient-controls-bar {
     layout: vertical;
     padding: 0 1;
@@ -289,6 +303,13 @@ DataTable {
     margin-left: 2;
     margin-bottom: 1;
     height: auto;
+}
+
+#save-target-profiles {
+    height: 6;
+    border: solid #334155;
+    background: #0f172a;
+    margin-bottom: 1;
 }
 
 #save-profile-protocol-btn {
@@ -505,6 +526,9 @@ class PeptideCalculatorApp(App):
     def compose(self) -> ComposeResult:
         db.init_db()
         yield Header()
+        with Horizontal(classes="global-profile-bar"):
+            yield Label("👤 Active Person:", classes="action-title")
+            yield Select(options=[("Default User", "1")], value="1", id="profile-select")
         with TabbedContent():
             with TabPane("Calculator & Syringe Visualizer", id="calc-tab"):
                 with Grid(classes="pane-container"):
@@ -551,7 +575,9 @@ class PeptideCalculatorApp(App):
                             id="dose-unit-select"
                         )
                         
-                        yield Button("💾 Save Protocol to Active Profile", id="save-profile-protocol-btn")
+                        yield Label("Save Protocol To (select one or more people):", classes="input-label")
+                        yield SelectionList(id="save-target-profiles")
+                        yield Button("💾 Save Protocol", id="save-profile-protocol-btn")
 
                     # Right Panel: Output & Visualizer in Scrollable Container
                     with ScrollableContainer(classes="results-panel"):
@@ -584,8 +610,7 @@ class PeptideCalculatorApp(App):
                 with Vertical():
                     with Container(classes="patient-controls-bar"):
                         with Horizontal(classes="control-row"):
-                            yield Label("Active Person Profile:", classes="action-title")
-                            yield Select(options=[("Default User", "1")], value="1", id="profile-select")
+                            yield Label("Manage People:", classes="action-title")
                             yield Input(placeholder="New person name...", id="new-profile-input")
                             yield Button("+ Add Person", id="add-profile-btn")
                             yield Button("❌ Remove Person", id="remove-profile-btn")
@@ -652,12 +677,33 @@ class PeptideCalculatorApp(App):
         if not profiles:
             return
         options = [(p["name"], str(p["id"])) for p in profiles]
-        
+
         profile_select = self.query_one("#profile-select", Select)
         profile_select.set_options(options)
         profile_select.value = str(self.active_profile_id)
-        
+
+        self.refresh_save_target_profiles()
         self.refresh_active_profile_display()
+
+    def refresh_save_target_profiles(self) -> None:
+        """Repopulate the Calculator tab's multi-person save checklist.
+
+        Preserves whatever the user already had checked across refreshes
+        (e.g. after adding a new person); the very first population instead
+        defaults to just the active profile checked.
+        """
+        try:
+            selection_list = self.query_one("#save-target-profiles", SelectionList)
+        except Exception:
+            return
+
+        previously_selected = set(selection_list.selected) if selection_list.option_count else {self.active_profile_id}
+        profiles = db.get_profiles()
+        selection_list.clear_options()
+        selection_list.add_options([
+            (p["name"], p["id"], p["id"] in previously_selected)
+            for p in profiles
+        ])
 
     def refresh_active_profile_display(self) -> None:
         profiles = db.get_profiles()
@@ -900,28 +946,41 @@ class PeptideCalculatorApp(App):
         self.update_schedule_table()
 
     def save_current_to_profile(self) -> None:
+        try:
+            selection_list = self.query_one("#save-target-profiles", SelectionList)
+            target_ids = list(selection_list.selected)
+        except Exception:
+            target_ids = []
+        if not target_ids:
+            target_ids = [self.active_profile_id]
+
         p = db.get_peptide_by_name(self.peptide)
         freq = p["freq"] if p else "daily"
         notes = p["notes"] if p else "User custom calculation"
         sched = p["schedule"] if p else [("Custom", self.target_dose, self.dose_unit)]
         sources = p["sources"] if p else []
-        
-        db.add_or_update_user_protocol(
-            self.active_profile_id,
-            self.peptide,
-            self.vial_mg,
-            self.water_ml,
-            self.target_dose,
-            self.dose_unit,
-            freq,
-            notes,
-            sched,
-            sources
-        )
+
+        for profile_id in target_ids:
+            db.add_or_update_user_protocol(
+                profile_id,
+                self.peptide,
+                self.vial_mg,
+                self.water_ml,
+                self.target_dose,
+                self.dose_unit,
+                freq,
+                notes,
+                sched,
+                sources
+            )
+
         self.refresh_patient_protocols_table()
+        self.refresh_dose_log_tables()
+
         profiles = db.get_profiles()
-        prof_name = next((prof["name"] for prof in profiles if prof["id"] == self.active_profile_id), "Person")
-        self.notify(f"Saved {self.peptide} protocol to {prof_name}'s list!", timeout=3.0)
+        names = [prof["name"] for prof in profiles if prof["id"] in target_ids]
+        names_str = ", ".join(names) if names else "selected people"
+        self.notify(f"Saved {self.peptide} protocol to: {names_str}", timeout=4.0)
 
     def quick_add_peptide_to_patient(self) -> None:
         select_widget = self.query_one("#patient-add-peptide-select", Select)
