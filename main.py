@@ -682,26 +682,26 @@ class PeptideCalculatorApp(App):
         profile_select.set_options(options)
         profile_select.value = str(self.active_profile_id)
 
-        self.refresh_save_target_profiles()
         self.refresh_active_profile_display()
 
     def refresh_save_target_profiles(self) -> None:
         """Repopulate the Calculator tab's multi-person save checklist.
 
-        Preserves whatever the user already had checked across refreshes
-        (e.g. after adding a new person); the very first population instead
-        defaults to just the active profile checked.
+        Always defaults to matching the active person selected in the
+        global picker at the top of the app -- switching that picker
+        re-syncs this checklist to just that person. The user can still
+        check additional people before clicking Save to save to several
+        profiles at once for that one action.
         """
         try:
             selection_list = self.query_one("#save-target-profiles", SelectionList)
         except Exception:
             return
 
-        previously_selected = set(selection_list.selected) if selection_list.option_count else {self.active_profile_id}
         profiles = db.get_profiles()
         selection_list.clear_options()
         selection_list.add_options([
-            (p["name"], p["id"], p["id"] in previously_selected)
+            (p["name"], p["id"], p["id"] == self.active_profile_id)
             for p in profiles
         ])
 
@@ -715,6 +715,7 @@ class PeptideCalculatorApp(App):
                 prof_select.value = str(self.active_profile_id)
         except Exception:
             pass
+        self.refresh_save_target_profiles()
         self.refresh_patient_protocols_table()
         self.refresh_dose_log_tables()
 

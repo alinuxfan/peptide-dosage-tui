@@ -17,7 +17,7 @@ def fresh_db(tmp_path, monkeypatch):
 def test_init_db_seeds_default_profiles(fresh_db):
     profiles = fresh_db.get_profiles()
     names = {p["name"] for p in profiles}
-    assert {"Default User", "Alice", "Bob"} <= names
+    assert {"Default User"} <= names
 
 
 def test_init_db_seeds_peptides_and_fixes_tesamorelin(fresh_db):

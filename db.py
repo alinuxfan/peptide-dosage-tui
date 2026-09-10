@@ -1056,12 +1056,10 @@ def init_db():
     )
     """)
 
-    # Populate default profiles if none exist
+    # Populate default profile if none exist
     cursor.execute("SELECT COUNT(*) as count FROM profiles")
     if cursor.fetchone()["count"] == 0:
         cursor.execute("INSERT INTO profiles (name, notes) VALUES ('Default User', 'Main user profile')")
-        cursor.execute("INSERT INTO profiles (name, notes) VALUES ('Alice', 'Sample patient profile A')")
-        cursor.execute("INSERT INTO profiles (name, notes) VALUES ('Bob', 'Sample patient profile B')")
 
     # One-time rename migration: "Tesemorelin" was a misspelling of "Tesamorelin".
     # Rewrite both the master template and any already-saved patient protocols
