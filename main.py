@@ -382,6 +382,51 @@ ConfirmScreen {
 }
 """
 
+LOG_DOSE_CSS = """
+LogDoseScreen {
+    align: center middle;
+}
+
+#logdose-dialog {
+    width: 60;
+    height: auto;
+    background: #1e293b;
+    border: solid #38bdf8;
+    padding: 1 2;
+}
+
+#logdose-message {
+    color: #f1f5f9;
+    margin-bottom: 1;
+    height: auto;
+}
+
+#logdose-notes {
+    margin-bottom: 1;
+}
+
+#logdose-buttons {
+    layout: horizontal;
+    height: 3;
+    align: right middle;
+}
+
+#logdose-buttons Button {
+    margin-left: 1;
+    min-width: 10;
+}
+
+#logdose-yes {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+#logdose-no {
+    background: #334155;
+    color: #f1f5f9;
+}
+"""
+
 
 class ConfirmScreen(ModalScreen[bool]):
     """A simple Yes/No confirmation modal. Dismisses with True (confirmed) or False (cancelled)."""
@@ -406,6 +451,43 @@ class ConfirmScreen(ModalScreen[bool]):
 
     def action_cancel(self) -> None:
         self.dismiss(False)
+
+
+class LogDoseScreen(ModalScreen[str | None]):
+    """Prompts for optional notes (injection site, side effects, etc.) when logging
+    a dose. Dismisses with the entered notes string on confirm, or None on cancel."""
+
+    CSS = LOG_DOSE_CSS
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, message: str) -> None:
+        super().__init__()
+        self.message = message
+
+    def compose(self) -> ComposeResult:
+        with Container(id="logdose-dialog"):
+            yield Label(self.message, id="logdose-message")
+            yield Input(placeholder="Notes (injection site, side effects, etc.) - optional", id="logdose-notes")
+            with Horizontal(id="logdose-buttons"):
+                yield Button("Cancel", id="logdose-no")
+                yield Button("Log Dose", id="logdose-yes")
+
+    def on_mount(self) -> None:
+        self.query_one("#logdose-notes", Input).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        if event.button.id == "logdose-yes":
+            self.dismiss(self.query_one("#logdose-notes", Input).value.strip())
+        else:
+            self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.dismiss(event.value.strip())
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 class PeptideCalculatorApp(App):
@@ -971,15 +1053,23 @@ class PeptideCalculatorApp(App):
             self.notify("Protocol not found.", severity="error")
             return
 
-        db.log_dose(
-            self.active_profile_id,
-            protocol_id,
-            protocol["peptide_name"],
-            protocol["target_dose"],
-            protocol["dose_unit"],
-        )
-        self.refresh_dose_log_tables()
-        self.notify(f"Logged dose: {protocol['peptide_name']} {protocol['target_dose']} {protocol['dose_unit']}", timeout=3.0)
+        dose_desc = f"{protocol['peptide_name']} {protocol['target_dose']} {protocol['dose_unit']}"
+
+        def handle_notes(notes: str | None) -> None:
+            if notes is None:
+                return  # cancelled
+            db.log_dose(
+                self.active_profile_id,
+                protocol_id,
+                protocol["peptide_name"],
+                protocol["target_dose"],
+                protocol["dose_unit"],
+                notes,
+            )
+            self.refresh_dose_log_tables()
+            self.notify(f"Logged dose: {dose_desc}", timeout=3.0)
+
+        self.push_screen(LogDoseScreen(f"Log dose: {dose_desc}"), handle_notes)
 
     def recalculate(self) -> None:
         try:
