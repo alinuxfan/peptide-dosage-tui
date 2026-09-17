@@ -1980,14 +1980,22 @@ class PeptideCalculatorApp(App):
             self.notify("Profile name already exists.", severity="error")
 
     def export_patient_sheet(self) -> None:
-        filename = db.export_person_reference_sheet(self.active_profile_id)
+        try:
+            filename = db.export_person_reference_sheet(self.active_profile_id)
+        except OSError as e:
+            self.notify(f"Error exporting summary sheet: {e}", severity="error", timeout=6.0)
+            return
         if filename:
             self.notify(f"Exported patient summary to: {filename}", timeout=4.0)
         else:
             self.notify("Error exporting summary sheet.", severity="error")
 
     def export_dose_log_csv(self) -> None:
-        filename = db.export_dose_log_csv(self.active_profile_id)
+        try:
+            filename = db.export_dose_log_csv(self.active_profile_id)
+        except OSError as e:
+            self.notify(f"Error exporting dose log: {e}", severity="error", timeout=6.0)
+            return
         if filename:
             self.notify(f"Exported dose log to: {filename}", timeout=4.0)
         else:
@@ -2135,7 +2143,14 @@ class PeptideCalculatorApp(App):
             self.notify("Protocol not found.", severity="error")
             return
 
-        start_dose = protocol["schedule"][0][1] if protocol["schedule"] else protocol["target_dose"]
+        # A schedule step carries its own unit, which may differ from the
+        # protocol's dose_unit -- convert so the prefill isn't off by 1000x.
+        if protocol["schedule"]:
+            first_step = protocol["schedule"][0]
+            step_unit = first_step[2] if len(first_step) > 2 else protocol["dose_unit"]
+            start_dose = calc.convert_dose(first_step[1], step_unit, protocol["dose_unit"])
+        else:
+            start_dose = protocol["target_dose"]
 
         def handle_result(schedule: list | None) -> None:
             if schedule is None:
@@ -2337,11 +2352,12 @@ class PeptideCalculatorApp(App):
             dose = self.target_dose
             unit = self.dose_unit
 
-            if vial_mg <= 0 or water_ml <= 0 or dose <= 0:
-                self.query_one("#calc-concentration", Label).update("Enter positive numbers...")
-                self.query_one("#calc-dose-volume", Label).update("Enter positive numbers...")
-                self.query_one("#calc-syringe-draw", Label).update("Enter positive numbers...")
-                self.query_one("#calc-doses-per-vial", Label).update("Enter positive numbers...")
+            problem = calc.validate_reconstitution_inputs(vial_mg, water_ml, dose, unit)
+            if problem:
+                self.query_one("#calc-concentration", Label).update(problem)
+                self.query_one("#calc-dose-volume", Label).update(problem)
+                self.query_one("#calc-syringe-draw", Label).update(problem)
+                self.query_one("#calc-doses-per-vial", Label).update(problem)
                 self.query_one("#syringe-visual", Label).update("  Syringe representation will appear here when inputs are valid.")
                 return
 
@@ -2598,7 +2614,7 @@ class PeptideCalculatorApp(App):
                     self.notify(f"No active protocols to export for {prof_name}.", severity="warning")
                     return
 
-                filename = f"schedule_{prof_name.lower().replace(' ', '_')}_all_peptides.txt"
+                filename = f"schedule_{calc.safe_filename_part(prof_name)}_all_peptides.txt"
                 filepath = os.path.join(os.getcwd(), filename)
 
                 with open(filepath, "w") as f:
@@ -2673,7 +2689,7 @@ class PeptideCalculatorApp(App):
                 notes = p.get("notes") or "Patient protocol."
                 sources = p.get("sources") or []
 
-                filename = f"schedule_{prof_name.lower().replace(' ', '_')}_{pep_name.lower().replace(' ', '_')}.txt"
+                filename = f"schedule_{calc.safe_filename_part(prof_name)}_{calc.safe_filename_part(pep_name)}.txt"
                 filepath = os.path.join(os.getcwd(), filename)
 
                 with open(filepath, "w") as f:
@@ -2748,7 +2764,7 @@ class PeptideCalculatorApp(App):
                 conc_mcg_ml = conc_mg_ml * 1000.0
                 weekly_exp = calc.parse_weekly_frequency(freq)
 
-                filename = f"peptide_{pep_name.lower().replace(' ', '_')}_schedule.txt"
+                filename = f"peptide_{calc.safe_filename_part(pep_name)}_schedule.txt"
                 filepath = os.path.join(os.getcwd(), filename)
 
                 with open(filepath, "w") as f:

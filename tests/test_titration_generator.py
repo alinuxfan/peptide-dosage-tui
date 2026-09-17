@@ -96,3 +96,41 @@ def test_generate_titration_cancel_does_not_change_protocol(tmp_path, monkeypatc
             assert saved["target_dose"] == 250.0
 
     asyncio.run(run())
+
+
+def test_prefill_converts_schedule_step_unit_to_protocol_unit(tmp_path, monkeypatch):
+    """A schedule step carries its own unit, which can differ from the
+    protocol's dose_unit -- prefilling the raw value would be off by 1000x."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(db, "DB_PATH", str(tmp_path / "test_peptides.db"))
+
+    async def run():
+        app = PeptideCalculatorApp()
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            pid = app.active_profile_id
+            # protocol dosed in mcg, but its first schedule step is written in mg
+            db.add_or_update_user_protocol(
+                pid, "UnitMismatch", 5.0, 2.0, 2000.0, "mcg", "daily", "n",
+                [("Week 1", 1.0, "mg")], [],
+            )
+            app.refresh_patient_protocols_table()
+            app.action_switch_tab("patient-tab")
+            await pilot.pause()
+
+            table = app.query_one("#patient-protocols-table", DataTable)
+            row = next(r for r in range(table.row_count)
+                       if table.get_cell_at((r, 1)) == "UnitMismatch")
+            table.move_cursor(row=row)
+            await pilot.pause()
+
+            app.generate_titration_for_selected_protocol()
+            await pilot.pause()
+            assert isinstance(app.screen, TitrationGeneratorScreen)
+
+            # 1.0 mg expressed in the protocol's mcg unit
+            assert float(app.screen.query_one("#titration-start-input", Input).value) == 1000.0
+            app.screen.action_cancel()
+            await pilot.pause()
+
+    asyncio.run(run())

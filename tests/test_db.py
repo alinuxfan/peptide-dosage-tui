@@ -366,3 +366,20 @@ def test_tracked_literature_peptide_association_and_filter(fresh_db):
     # Re-saving without a peptide must not wipe an existing association
     fresh_db.save_tracked_article("111", "A v2", ["Author A"], "abs A2")
     assert fresh_db.get_tracked_article_by_pmid("111")["peptide_name"] == "Semax"
+
+
+def test_deleting_protocol_nulls_dose_log_reference_but_keeps_history(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "n", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", "kept")
+
+    fresh_db.delete_user_protocol(protocol_id)
+
+    log = fresh_db.get_dose_log(pid)
+    assert len(log) == 1                      # history survives the protocol
+    assert log[0]["peptide_name"] == "BPC-157"
+    assert log[0]["notes"] == "kept"
+    assert log[0]["protocol_id"] is None      # but no longer dangles

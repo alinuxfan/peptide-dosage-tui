@@ -1278,6 +1278,10 @@ def add_or_update_user_protocol(profile_id, peptide_name, vial_mg, water_ml, tar
 def delete_user_protocol(protocol_id):
     conn = get_connection()
     cursor = conn.cursor()
+    # dose_log rows deliberately outlive their protocol (peptide_name is
+    # denormalized for exactly this reason), but protocol_id has no cascading FK,
+    # so null it rather than leaving it pointing at a row that no longer exists.
+    cursor.execute("UPDATE dose_log SET protocol_id = NULL WHERE protocol_id = ?", (protocol_id,))
     cursor.execute("DELETE FROM user_protocols WHERE id = ?", (protocol_id,))
     conn.commit()
     conn.close()
@@ -1483,7 +1487,7 @@ def export_person_reference_sheet(profile_id):
     protocols = get_user_protocols(profile_id)
     conn.close()
     
-    filename = f"patient_{profile_name.lower().replace(' ', '_')}_peptides_summary.txt"
+    filename = f"patient_{calc.safe_filename_part(profile_name)}_peptides_summary.txt"
     filepath = os.path.join(os.getcwd(), filename)
     
     with open(filepath, "w") as f:
@@ -1560,7 +1564,7 @@ def export_dose_log_csv(profile_id):
 
     dose_log = get_dose_log(profile_id)
 
-    filename = f"dose_log_{profile_name.lower().replace(' ', '_')}.csv"
+    filename = f"dose_log_{calc.safe_filename_part(profile_name)}.csv"
     filepath = os.path.join(os.getcwd(), filename)
 
     with open(filepath, "w", newline="") as f:

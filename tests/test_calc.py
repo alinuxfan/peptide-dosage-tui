@@ -259,3 +259,46 @@ def test_parse_dose_timestamp():
         calc.parse_dose_timestamp("garbage", now)
     with pytest.raises(ValueError):
         calc.parse_dose_timestamp("2099-01-01", now)
+
+
+def test_safe_filename_part_flattens_path_separators():
+    # The bug: profile "Adam/Bob" produced "patient_adam/bob_...txt", a path
+    # into a directory that doesn't exist -> FileNotFoundError.
+    assert calc.safe_filename_part("Adam/Bob") == "adam_bob"
+    assert calc.safe_filename_part("Custom / Other") == "custom_other"
+    assert calc.safe_filename_part("CJC-1295 / Ipamorelin Blend") == "cjc-1295_ipamorelin_blend"
+    assert calc.safe_filename_part("Default User") == "default_user"
+
+
+def test_safe_filename_part_blocks_traversal_and_empty_names():
+    for hostile in ("../escape", "../../etc/passwd", "..", "...", "/", ""):
+        result = calc.safe_filename_part(hostile)
+        assert "/" not in result
+        assert not result.startswith(".")
+        assert result  # never empty -- falls back rather than yielding a bare extension
+    assert calc.safe_filename_part("", fallback="anon") == "anon"
+
+
+def test_validate_reconstitution_inputs_accepts_realistic_values():
+    assert calc.validate_reconstitution_inputs(5.0, 2.0, 250.0, "mcg") is None
+    assert calc.validate_reconstitution_inputs(500.0, 10.0, 50.0, "mg") is None
+
+
+def test_validate_reconstitution_inputs_rejects_out_of_range():
+    assert "Enter positive" in calc.validate_reconstitution_inputs(0.0, 2.0, 250.0, "mcg")
+    assert "Enter positive" in calc.validate_reconstitution_inputs(5.0, 2.0, -1.0, "mcg")
+    assert "Vial size" in calc.validate_reconstitution_inputs(1e99, 2.0, 250.0, "mcg")
+    assert "BAC water" in calc.validate_reconstitution_inputs(5.0, 5000.0, 250.0, "mcg")
+    assert "Dose" in calc.validate_reconstitution_inputs(5.0, 2.0, 99999.0, "mg")
+
+
+def test_validate_reconstitution_inputs_rejects_nan_and_inf():
+    assert "real number" in calc.validate_reconstitution_inputs(float("nan"), 2.0, 250.0, "mcg")
+    assert "real number" in calc.validate_reconstitution_inputs(float("inf"), 2.0, 250.0, "mcg")
+
+
+def test_convert_dose_between_units():
+    assert calc.convert_dose(1.0, "mg", "mcg") == 1000.0
+    assert calc.convert_dose(250.0, "mcg", "mg") == 0.25
+    assert calc.convert_dose(5.0, "mg", "mg") == 5.0
+    assert calc.convert_dose(5.0, "iu", "mg") == 5.0  # unknown units pass through

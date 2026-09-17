@@ -1,3 +1,4 @@
+import math
 import re
 from datetime import datetime, timedelta
 
@@ -373,3 +374,65 @@ def parse_dose_timestamp(text: str, now: datetime) -> str | None:
         raise ValueError("Dose date can't be in the future.")
 
     return parsed.strftime("%Y-%m-%d %H:%M:%S")
+
+
+# Profile names are user-entered and several catalog peptides contain "/"
+# (e.g. "CJC-1295 / Ipamorelin Blend", "Custom / Other"), so any name used to
+# build an export filename must be flattened first -- an unsanitised "/" turns
+# the filename into a path into a directory that doesn't exist.
+_UNSAFE_FILENAME_CHARS_RE = re.compile(r"[^a-z0-9._-]+")
+
+
+def safe_filename_part(name: str, fallback: str = "unnamed") -> str:
+    """Flatten an arbitrary name into a single safe filename component.
+
+    Lowercases, collapses runs of unsafe characters (path separators, spaces,
+    ':', '*', '+', etc.) into single underscores, and strips leading dots so the
+    result can never traverse directories or produce a hidden file.
+    """
+    cleaned = _UNSAFE_FILENAME_CHARS_RE.sub("_", (name or "").strip().lower())
+    cleaned = cleaned.strip("._-")
+    return cleaned or fallback
+
+
+# Sane upper bounds for reconstitution inputs. The seed catalog tops out at a
+# 500 mg vial, 10 mL of water and a 50 mg dose, so these leave ample headroom
+# while still rejecting values that produce meaningless output (e.g. a 1e99 mg
+# vial rendering a 40-digit concentration that overflows the layout).
+MAX_VIAL_MG = 10_000.0
+MAX_WATER_ML = 1_000.0
+MAX_DOSE_MG = 10_000.0
+
+
+def validate_reconstitution_inputs(
+    vial_mg: float,
+    water_ml: float,
+    dose: float,
+    unit: str,
+) -> str | None:
+    """Return a human-readable problem with the calculator inputs, else None."""
+    for label, value in (("Vial size", vial_mg), ("BAC water", water_ml), ("Dose", dose)):
+        if not math.isfinite(value):
+            return f"{label} must be a real number."
+        if value <= 0:
+            return "Enter positive numbers..."
+
+    if vial_mg > MAX_VIAL_MG:
+        return f"Vial size must be {MAX_VIAL_MG:,.0f} mg or less."
+    if water_ml > MAX_WATER_ML:
+        return f"BAC water must be {MAX_WATER_ML:,.0f} mL or less."
+    if dose_to_mg(dose, unit) > MAX_DOSE_MG:
+        return f"Dose must be {MAX_DOSE_MG:,.0f} mg or less."
+
+    return None
+
+
+def convert_dose(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert a dose between mcg and mg (identity for matching/unknown units)."""
+    if from_unit == to_unit:
+        return value
+    if from_unit == "mcg" and to_unit == "mg":
+        return value / 1000.0
+    if from_unit == "mg" and to_unit == "mcg":
+        return value * 1000.0
+    return value
