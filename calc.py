@@ -262,3 +262,114 @@ def split_vial_aliquots(vial_mg: float, water_ml: float, num_splits: int) -> dic
         "concentration_mg_ml": concentration_mg_ml(vial_mg, water_ml),
     }
 
+
+
+# Reconstituted peptide in bacteriostatic water is generally considered stable
+# for ~28 days refrigerated; past that the solution is beyond-use regardless of
+# how many doses are left in the vial.
+DEFAULT_BUD_DAYS = 28
+
+
+def bud_expiry_at(reconstituted_at: datetime | None, bud_days: float = DEFAULT_BUD_DAYS) -> datetime | None:
+    """Beyond-use date for a reconstituted vial, or None if not yet reconstituted."""
+    if reconstituted_at is None or bud_days <= 0:
+        return None
+    return reconstituted_at + timedelta(days=bud_days)
+
+
+def format_bud_label(expiry_at: datetime | None, now: datetime) -> str:
+    """Human-readable beyond-use-date status for a reconstituted vial."""
+    if expiry_at is None:
+        return "Not reconstituted"
+
+    delta_days = (expiry_at - now).total_seconds() / 86400.0
+    if delta_days < 0:
+        expired_days = abs(delta_days)
+        return "❌ Expired today" if expired_days < 1 else f"❌ Expired {expired_days:.0f}d ago"
+    if delta_days < 1:
+        return "⚠️ Expires today"
+    if delta_days <= 5:
+        return f"⚠️ Expires in {delta_days:.0f}d"
+    return f"✓ Fresh ({delta_days:.0f}d left)"
+
+
+def bud_exceeded_by_duration(
+    doses_per_vial: float,
+    weekly_expected: float | None,
+    bud_days: float = DEFAULT_BUD_DAYS,
+) -> bool:
+    """True when a vial holds more doses than can be used before it expires.
+
+    Flags the misleading case where "est. vial duration" spans months but the
+    reconstituted solution is only good for bud_days.
+    """
+    if weekly_expected is None or weekly_expected <= 0 or doses_per_vial <= 0 or bud_days <= 0:
+        return False
+    usable_days = doses_per_vial / (weekly_expected / 7.0)
+    return usable_days > bud_days
+
+
+def adherence_label(
+    adherence_pct: float | None,
+    weekly_expected: float | None,
+    days_elapsed: float,
+) -> str:
+    """Distinguish *why* adherence is unmeasurable instead of showing a bare N/A.
+
+    A brand-new protocol and an unparseable frequency both yield
+    adherence_pct=None but mean very different things to the user.
+    """
+    if adherence_pct is not None:
+        return f"{adherence_pct:.0f}%"
+    if weekly_expected is None or weekly_expected <= 0:
+        return "Freq. not recognized"
+    if days_elapsed < 1:
+        return "Too new"
+    return "N/A"
+
+
+def doses_remaining(doses_per_vial: float, doses_used: int) -> float:
+    """Doses left in the current vial, floored at 0."""
+    return max(0.0, doses_per_vial - doses_used)
+
+
+def format_doses_remaining(remaining: float, total: float) -> str:
+    """Inventory label for a vial, warning as it runs low."""
+    if total <= 0:
+        return "N/A"
+    if remaining <= 0:
+        return "❌ Empty - reorder"
+    if remaining <= 2:
+        return f"⚠️ {remaining:.1f} left - reorder"
+    return f"{remaining:.1f} / {total:.1f} left"
+
+
+# dose_log timestamps are naive UTC strings (SQLite CURRENT_TIMESTAMP), so
+# user-entered dose dates are interpreted in the same frame.
+DOSE_TIMESTAMP_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d")
+
+
+def parse_dose_timestamp(text: str, now: datetime) -> str | None:
+    """Parse a user-entered dose date/time into a dose_log timestamp string.
+
+    Accepts "YYYY-MM-DD HH:MM[:SS]" or "YYYY-MM-DD" (midnight). Blank or "now"
+    returns None, meaning "use the current time". Raises ValueError on anything
+    else, or on a date in the future (you can't have taken a dose yet).
+    """
+    cleaned = (text or "").strip()
+    if not cleaned or cleaned.lower() == "now":
+        return None
+
+    for fmt in DOSE_TIMESTAMP_FORMATS:
+        try:
+            parsed = datetime.strptime(cleaned, fmt)
+            break
+        except ValueError:
+            continue
+    else:
+        raise ValueError("Use format YYYY-MM-DD or YYYY-MM-DD HH:MM (or blank for now).")
+
+    if parsed > now + timedelta(minutes=5):
+        raise ValueError("Dose date can't be in the future.")
+
+    return parsed.strftime("%Y-%m-%d %H:%M:%S")

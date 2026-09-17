@@ -405,6 +405,28 @@ DataTable {
     height: 3;
 }
 
+.track-sources-btn {
+    background: #334155;
+    color: #38bdf8;
+    text-style: bold;
+    margin-top: 1;
+    height: 3;
+}
+
+#mark-reconstituted-btn, #edit-log-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    text-style: bold;
+    min-width: 16;
+    margin-left: 1;
+    height: 3;
+}
+
+#literature-peptide-filter {
+    width: 46;
+    margin-left: 1;
+}
+
 #adherence-table {
     height: 10;
     margin: 0 1;
@@ -475,6 +497,20 @@ LogDoseScreen {
     margin-bottom: 1;
 }
 
+#logdose-taken-at {
+    margin-bottom: 1;
+}
+
+.logdose-field-label {
+    color: #cbd5e1;
+    height: 1;
+}
+
+#logdose-status {
+    color: #f87171;
+    height: auto;
+}
+
 #logdose-buttons {
     layout: horizontal;
     height: 3;
@@ -523,9 +559,10 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(False)
 
 
-class LogDoseScreen(ModalScreen[str | None]):
-    """Prompts for optional notes (injection site, side effects, etc.) when logging
-    a dose. Dismisses with the entered notes string on confirm, or None on cancel."""
+class LogDoseScreen(ModalScreen[dict | None]):
+    """Prompts for optional notes and an optional back-dated time when logging a
+    dose. Dismisses with {"notes": str, "taken_at": str | None} on confirm
+    (taken_at None meaning "now"), or None on cancel."""
 
     CSS = LOG_DOSE_CSS
     BINDINGS = [Binding("escape", "cancel", show=False)]
@@ -537,7 +574,11 @@ class LogDoseScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Container(id="logdose-dialog"):
             yield Label(self.message, id="logdose-message")
-            yield Input(placeholder="Notes (injection site, side effects, etc.) - optional", id="logdose-notes")
+            yield Label("Notes (optional):", classes="logdose-field-label")
+            yield Input(placeholder="Injection site, side effects, etc.", id="logdose-notes")
+            yield Label("Taken at (blank = now, or YYYY-MM-DD HH:MM):", classes="logdose-field-label")
+            yield Input(placeholder="e.g. 2026-09-15 08:30", id="logdose-taken-at")
+            yield Label("", id="logdose-status")
             with Horizontal(id="logdose-buttons"):
                 yield Button("Cancel", id="logdose-no")
                 yield Button("Log Dose", id="logdose-yes")
@@ -545,16 +586,161 @@ class LogDoseScreen(ModalScreen[str | None]):
     def on_mount(self) -> None:
         self.query_one("#logdose-notes", Input).focus()
 
+    def confirm(self) -> None:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        try:
+            taken_at = calc.parse_dose_timestamp(
+                self.query_one("#logdose-taken-at", Input).value, now
+            )
+        except ValueError as e:
+            self.query_one("#logdose-status", Label).update(str(e))
+            return
+        self.dismiss({
+            "notes": self.query_one("#logdose-notes", Input).value.strip(),
+            "taken_at": taken_at,
+        })
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         if event.button.id == "logdose-yes":
-            self.dismiss(self.query_one("#logdose-notes", Input).value.strip())
+            self.confirm()
         else:
             self.dismiss(None)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
-        self.dismiss(event.value.strip())
+        self.confirm()
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+EDIT_DOSE_CSS = """
+EditDoseScreen {
+    align: center middle;
+}
+
+#editdose-dialog {
+    width: 64;
+    height: auto;
+    background: #1e293b;
+    border: solid #38bdf8;
+    padding: 1 2;
+}
+
+#editdose-title {
+    color: #38bdf8;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.editdose-field-label {
+    color: #cbd5e1;
+    height: 1;
+}
+
+#editdose-status {
+    color: #f87171;
+    height: auto;
+}
+
+#editdose-buttons {
+    layout: horizontal;
+    height: 3;
+    align: right middle;
+}
+
+#editdose-buttons Button {
+    margin-left: 1;
+    min-width: 12;
+}
+
+#editdose-save {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+#editdose-cancel {
+    background: #334155;
+    color: #f1f5f9;
+}
+"""
+
+
+class EditDoseScreen(ModalScreen[dict | None]):
+    """Corrects an already-logged dose (wrong amount, unit, date, or note).
+    Dismisses with the updated field dict, or None on cancel."""
+
+    CSS = EDIT_DOSE_CSS
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, entry: dict) -> None:
+        super().__init__()
+        self.entry = entry
+
+    def compose(self) -> ComposeResult:
+        with Container(id="editdose-dialog"):
+            yield Label(f"✏️ Edit Logged Dose: {self.entry['peptide_name']}", id="editdose-title")
+            yield Label("Dose amount:", classes="editdose-field-label")
+            yield Input(value=f"{self.entry['dose_amount']:g}", id="editdose-amount")
+            yield Label("Dose unit (mcg or mg):", classes="editdose-field-label")
+            yield Input(value=str(self.entry['dose_unit']), id="editdose-unit")
+            yield Label("Taken at (YYYY-MM-DD HH:MM):", classes="editdose-field-label")
+            yield Input(value=str(self.entry['taken_at'] or ""), id="editdose-taken-at")
+            yield Label("Notes:", classes="editdose-field-label")
+            yield Input(value=str(self.entry['notes'] or ""), id="editdose-notes")
+            yield Label("", id="editdose-status")
+            with Horizontal(id="editdose-buttons"):
+                yield Button("Cancel", id="editdose-cancel")
+                yield Button("Save Changes", id="editdose-save")
+
+    def on_mount(self) -> None:
+        self.query_one("#editdose-amount", Input).focus()
+
+    def confirm(self) -> None:
+        status = self.query_one("#editdose-status", Label)
+        try:
+            amount = float(self.query_one("#editdose-amount", Input).value)
+        except ValueError:
+            status.update("Dose amount must be a number.")
+            return
+        if amount <= 0:
+            status.update("Dose amount must be greater than 0.")
+            return
+
+        unit = self.query_one("#editdose-unit", Input).value.strip().lower()
+        if unit not in ("mcg", "mg"):
+            status.update("Dose unit must be 'mcg' or 'mg'.")
+            return
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        try:
+            taken_at = calc.parse_dose_timestamp(
+                self.query_one("#editdose-taken-at", Input).value, now
+            )
+        except ValueError as e:
+            status.update(str(e))
+            return
+        if taken_at is None:
+            taken_at = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        self.dismiss({
+            "dose_amount": amount,
+            "dose_unit": unit,
+            "taken_at": taken_at,
+            "notes": self.query_one("#editdose-notes", Input).value.strip(),
+        })
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        if event.button.id == "editdose-save":
+            self.confirm()
+        else:
+            self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        event.stop()
+        self.confirm()
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -933,7 +1119,8 @@ class HelpScreen(ModalScreen[None]):
             ("6 / F6", "Literature Tracker tab (fetch article by PMID)"),
             ("Ctrl+P", "Cycle active patient / person profile"),
             ("Ctrl+S", "Save current schedule to text file"),
-            ("Ctrl+L", "Quick-log dose for active protocol"),
+            ("Ctrl+L", "Quick-log dose for active protocol (backdate supported)"),
+            ("Ctrl+R", "Mark selected vial reconstituted (starts BUD)"),
             ("Tab / Shift+Tab", "Navigate between inputs, buttons & tables"),
             ("Space / Enter", "Select dropdown option / activate button"),
             ("? / F12", "Toggle this keyboard shortcuts help"),
@@ -972,6 +1159,7 @@ class PeptideCalculatorApp(App):
         Binding("ctrl+p", "next_profile", "Next Person", show=True),
         Binding("ctrl+s", "save_schedule", "Save Schedule", show=True),
         Binding("ctrl+l", "quick_log_dose", "Log Dose", show=True),
+        Binding("ctrl+r", "mark_reconstituted", "Reconstituted", show=False),
         Binding("question_mark", "show_help", "Help", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
         # Secondary convenience shortcuts
@@ -984,6 +1172,10 @@ class PeptideCalculatorApp(App):
         Binding("f12", "show_help", "Help", show=False),
         Binding("q", "quit", "Quit", show=False),
     ]
+
+    # Maps the generated Reference-tab button ids to the peptide they track
+    # sources for (peptide names aren't valid widget ids).
+    _reference_source_buttons: dict[str, str] = {}
 
     active_profile_id = reactive(1)
     peptide = reactive("Custom / Other")
@@ -1095,6 +1287,7 @@ class PeptideCalculatorApp(App):
                             yield Button("💊 Log Dose Taken", id="log-dose-btn")
                             yield Button("📅 View Titration Schedule", id="view-schedule-btn")
                             yield Button("🧬 Generate Titration Schedule", id="generate-titration-btn")
+                            yield Button("🧊 Mark Reconstituted", id="mark-reconstituted-btn")
                     yield DataTable(id="patient-protocols-table", cursor_type="row")
 
             with TabPane("Dosing Schedule Planner", id="schedule-tab"):
@@ -1117,6 +1310,7 @@ class PeptideCalculatorApp(App):
                     with Container(classes="action-bar"):
                         yield Label("Dose History & Adherence (Active Profile)", classes="action-title")
                         yield Button("📄 Export CSV", id="export-dose-log-csv-btn")
+                        yield Button("✏️ Edit Entry", id="edit-log-btn")
                         yield Button("🗑️ Delete Entry", id="delete-log-btn")
                     yield Label("Adherence Summary", classes="title-label")
                     yield DataTable(id="adherence-table", cursor_type="row")
@@ -1138,6 +1332,13 @@ class PeptideCalculatorApp(App):
                         yield Input(placeholder="Enter PMID (e.g. 34097675)...", id="literature-pmid-input")
                         yield Button("🔎 Fetch & Track", id="fetch-literature-btn")
                         yield Button("🗑️ Remove Selected", id="delete-literature-btn")
+                    with Container(classes="action-bar"):
+                        yield Label("Filter by Peptide:", classes="action-title")
+                        yield Select(
+                            options=[("📚 All tracked articles", "__all__")],
+                            value="__all__",
+                            id="literature-peptide-filter",
+                        )
                     yield Label("Idle. Enter a PMID above to fetch its title, authors, and abstract from NCBI.", id="literature-status", classes="info-text")
                     yield DataTable(id="literature-table", cursor_type="row")
                     with ScrollableContainer(classes="info-pane"):
@@ -1148,16 +1349,16 @@ class PeptideCalculatorApp(App):
 
     def on_mount(self) -> None:
         patient_table = self.query_one("#patient-protocols-table", DataTable)
-        patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Next Dose Due", "Last Updated")
+        patient_table.add_columns("ID", "Peptide Name", "Vial Strength", "BAC Water", "Target Dose", "Syringe Draw", "Frequency", "Next Dose Due", "Vial BUD / Expiry", "Doses Left", "Last Updated")
 
         adherence_table = self.query_one("#adherence-table", DataTable)
-        adherence_table.add_columns("Peptide", "Frequency", "Doses Logged", "Adherence %", "Next Dose Due")
+        adherence_table.add_columns("Peptide", "Frequency", "Doses Logged", "Adherence", "Next Dose Due", "Vial BUD / Expiry", "Doses Left")
 
         dose_log_table = self.query_one("#dose-log-table", DataTable)
         dose_log_table.add_columns("ID", "Peptide", "Dose", "Taken At", "Notes")
 
         literature_table = self.query_one("#literature-table", DataTable)
-        literature_table.add_columns("ID", "PMID", "Title", "Authors", "Journal", "Year")
+        literature_table.add_columns("ID", "PMID", "Peptide", "Title", "Authors", "Journal", "Year")
 
         self.refresh_profiles()
         self.refresh_peptide_templates()
@@ -1166,6 +1367,7 @@ class PeptideCalculatorApp(App):
         self.refresh_schedule_selector()
         self.update_schedule_table()
         self.populate_reference_tab()
+        self.refresh_literature_peptide_filter()
         self.refresh_literature_table()
         self.recalculate()
 
@@ -1300,8 +1502,8 @@ class PeptideCalculatorApp(App):
         table.clear()
 
         now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, to match db.py's next_due_at
-        due_by_protocol_id = {
-            entry['protocol_id']: entry['next_due_at']
+        status_by_protocol_id = {
+            entry['protocol_id']: entry
             for entry in db.get_protocol_adherence(self.active_profile_id)
         }
 
@@ -1314,7 +1516,12 @@ class PeptideCalculatorApp(App):
             dose_mg = calc.dose_to_mg(p['target_dose'], p['dose_unit'])
             vol_ml = calc.draw_volume_ml(dose_mg, conc)
             units = calc.syringe_units(vol_ml)
-            due_label = calc.format_due_label(due_by_protocol_id.get(p['id']), now)
+            status = status_by_protocol_id.get(p['id'], {})
+            due_label = calc.format_due_label(status.get('next_due_at'), now)
+            bud_label = calc.format_bud_label(status.get('bud_expiry_at'), now)
+            vial_label = calc.format_doses_remaining(
+                status.get('doses_remaining', 0.0), status.get('doses_total', 0.0)
+            )
 
             table.add_row(
                 str(p['id']),
@@ -1325,6 +1532,8 @@ class PeptideCalculatorApp(App):
                 f"{units:.1f} Units",
                 p['frequency'],
                 due_label,
+                bud_label,
+                vial_label,
                 p['updated_at'][:10]
             )
 
@@ -1349,14 +1558,18 @@ class PeptideCalculatorApp(App):
         adherence_table.clear()
         now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, to match db.py's next_due_at
         for entry in db.get_protocol_adherence(self.active_profile_id):
-            pct_str = f"{entry['adherence_pct']:.0f}%" if entry['adherence_pct'] is not None else "N/A"
             due_label = calc.format_due_label(entry['next_due_at'], now)
+            bud_label = calc.format_bud_label(entry['bud_expiry_at'], now)
+            if entry['bud_exceeded'] and entry['reconstituted_at'] is None:
+                bud_label = "Not reconstituted (vial outlasts BUD)"
             adherence_table.add_row(
                 entry['peptide_name'],
                 entry['frequency'] or "-",
                 str(entry['logged_count']),
-                pct_str,
+                entry['adherence_label'],
                 due_label,
+                bud_label,
+                calc.format_doses_remaining(entry['doses_remaining'], entry['doses_total']),
             )
 
         dose_log_table.clear()
@@ -1393,6 +1606,7 @@ class PeptideCalculatorApp(App):
     def populate_reference_tab(self, filter_text: str = "") -> None:
         container = self.query_one("#reference-scroll-container", ScrollableContainer)
         container.remove_children()
+        self._reference_source_buttons = {}
 
         peptides = db.get_peptides()
         needle = filter_text.strip().lower()
@@ -1416,7 +1630,15 @@ class PeptideCalculatorApp(App):
                 for s in p['sources']:
                     cite_md = f"  - {s['title']} (PMID: {s['pmid']})\n    URL: {s['url']}"
                     children.append(Static(cite_md, classes="source-link"))
-                    
+
+                # Peptide names contain spaces, slashes and '+', none of which are
+                # valid in a widget id -- key the button by index instead.
+                btn_id = f"track-sources-{len(self._reference_source_buttons)}"
+                self._reference_source_buttons[btn_id] = p['name']
+                children.append(
+                    Button(f"📚 Track {len(p['sources'])} PMIDs for {p['name']}", id=btn_id, classes="track-sources-btn")
+                )
+
             sec = Vertical(*children, classes="info-section")
             container.mount(sec)
 
@@ -1426,8 +1648,15 @@ class PeptideCalculatorApp(App):
         except Exception:
             return
 
+        try:
+            filter_select = self.query_one("#literature-peptide-filter", Select)
+            selected = str(filter_select.value) if filter_select.value != Select.BLANK else "__all__"
+        except Exception:
+            selected = "__all__"
+        peptide_filter = None if selected == "__all__" else selected
+
         table.clear()
-        for article in db.get_tracked_literature():
+        for article in db.get_tracked_literature(peptide_filter):
             authors = article["authors"] or ["Unknown Authors"]
             authors_str = ", ".join(authors[:3])
             if len(authors) > 3:
@@ -1435,11 +1664,39 @@ class PeptideCalculatorApp(App):
             table.add_row(
                 str(article["id"]),
                 article["pmid"],
+                article["peptide_name"] or "-",
                 article["title"],
                 authors_str,
                 article["journal"] or "-",
                 article["pub_date"] or "-",
             )
+
+    def refresh_literature_peptide_filter(self) -> None:
+        """Repopulate the peptide filter with only peptides that actually have
+        tracked articles, so the dropdown never offers an empty result."""
+        try:
+            filter_select = self.query_one("#literature-peptide-filter", Select)
+        except Exception:
+            return
+
+        tracked = db.get_tracked_literature()
+        counts: dict[str, int] = {}
+        for article in tracked:
+            name = article["peptide_name"]
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+
+        options = [(f"📚 All tracked articles ({len(tracked)})", "__all__")]
+        for name in sorted(counts):
+            options.append((f"🔬 {name} ({counts[name]})", name))
+
+        valid = {val for _, val in options}
+        prior = str(filter_select.value) if filter_select.value != Select.BLANK else "__all__"
+        target = prior if prior in valid else "__all__"
+
+        with filter_select.prevent(Select.Changed):
+            filter_select.set_options(options)
+            filter_select.value = target
 
     def fetch_literature_pmid(self) -> None:
         input_widget = self.query_one("#literature-pmid-input", Input)
@@ -1481,6 +1738,7 @@ class PeptideCalculatorApp(App):
 
         status.update(f"✅ Tracked PMID {pmid}: {article['title'][:80]}")
         self.query_one("#literature-pmid-input", Input).value = ""
+        self.refresh_literature_peptide_filter()
         self.refresh_literature_table()
         self.notify(f"Added PMID {pmid} to the literature tracker.", timeout=4.0)
 
@@ -1500,6 +1758,7 @@ class PeptideCalculatorApp(App):
             if not confirmed:
                 return
             db.delete_tracked_article(article_id)
+            self.refresh_literature_peptide_filter()
             self.refresh_literature_table()
             self.query_one("#literature-abstract-view", Static).update(
                 "Select a tracked article above to view its abstract."
@@ -1555,6 +1814,9 @@ class PeptideCalculatorApp(App):
                 pass
         elif event.select.id == "schedule-protocol-select":
             self.update_schedule_table()
+            return
+        elif event.select.id == "literature-peptide-filter":
+            self.refresh_literature_table()
             return
             
         self.recalculate()
@@ -1629,6 +1891,12 @@ class PeptideCalculatorApp(App):
             self.generate_titration_for_selected_protocol()
         elif btn_id == "split-vial-btn":
             self.open_vial_split_calculator()
+        elif btn_id == "mark-reconstituted-btn":
+            self.mark_selected_protocol_reconstituted()
+        elif btn_id == "edit-log-btn":
+            self.edit_selected_dose_log_entry()
+        elif btn_id in self._reference_source_buttons:
+            self.track_peptide_sources(self._reference_source_buttons[btn_id])
 
         self.recalculate()
         self.update_schedule_table()
@@ -1888,6 +2156,131 @@ class PeptideCalculatorApp(App):
             handle_result,
         )
 
+    def mark_selected_protocol_reconstituted(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the patient table to mark reconstituted.", severity="warning")
+            return
+
+        try:
+            protocol_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected protocol.", severity="error")
+            return
+
+        protocol = db.get_user_protocol_by_id(protocol_id)
+        if not protocol:
+            self.notify("Protocol not found.", severity="error")
+            return
+
+        def handle_confirm(confirmed: bool | None) -> None:
+            if not confirmed:
+                return
+            db.set_protocol_reconstituted(protocol_id)
+            self.refresh_patient_protocols_table()
+            self.refresh_dose_log_tables()
+            self.notify(
+                f"{protocol['peptide_name']} marked reconstituted - "
+                f"{calc.DEFAULT_BUD_DAYS}-day BUD started, vial inventory reset.",
+                timeout=5.0,
+            )
+
+        prior = protocol.get("reconstituted_at")
+        msg = (
+            f"Mark {protocol['peptide_name']} as reconstituted now?\n"
+            f"This starts a fresh {calc.DEFAULT_BUD_DAYS}-day beyond-use window "
+            f"and resets this vial's dose count."
+        )
+        if prior:
+            msg += f"\n\nCurrent vial was reconstituted {prior[:16]}."
+        self.push_screen(ConfirmScreen(msg), handle_confirm)
+
+    def edit_selected_dose_log_entry(self) -> None:
+        table = self.query_one("#dose-log-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the dose log to edit.", severity="warning")
+            return
+
+        try:
+            log_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected log entry.", severity="error")
+            return
+
+        entry = db.get_dose_log_entry_by_id(log_id)
+        if not entry:
+            self.notify("Dose log entry not found.", severity="error")
+            return
+
+        def handle_edit(result: dict | None) -> None:
+            if result is None:
+                return
+            db.update_dose_log_entry(
+                log_id,
+                result["dose_amount"],
+                result["dose_unit"],
+                result["taken_at"],
+                result["notes"],
+            )
+            self.refresh_dose_log_tables()
+            self.refresh_patient_protocols_table()
+            self.notify(f"Updated dose log entry #{log_id}.", timeout=3.0)
+
+        self.push_screen(EditDoseScreen(entry), handle_edit)
+
+    def track_peptide_sources(self, peptide_name: str) -> None:
+        """Fetch and track every PubMed source cited for a peptide in one go."""
+        peptide = db.get_peptide_by_name(peptide_name)
+        if not peptide or not peptide.get("sources"):
+            self.notify(f"No cited sources for {peptide_name}.", severity="warning")
+            return
+
+        pmids = [s["pmid"] for s in peptide["sources"] if s.get("pmid")]
+        if not pmids:
+            self.notify(f"No PMIDs listed for {peptide_name}.", severity="warning")
+            return
+
+        self.notify(f"Fetching {len(pmids)} article(s) for {peptide_name}...", timeout=3.0)
+        self.run_worker(
+            self.track_peptide_sources_worker(peptide_name, pmids),
+            group="literature-fetch",
+        )
+
+    async def track_peptide_sources_worker(self, peptide_name: str, pmids: list[str]) -> None:
+        saved = 0
+        failed: list[str] = []
+        for pmid in pmids:
+            try:
+                article = await ncbi.fetch_pubmed_article(pmid)
+            except Exception:
+                failed.append(pmid)
+                continue
+            db.save_tracked_article(
+                pmid=article["pmid"],
+                title=article["title"],
+                authors=article["authors"],
+                abstract=article["abstract"],
+                journal=article["journal"],
+                pub_date=article["pub_date"],
+                url=article["url"],
+                peptide_name=peptide_name,
+            )
+            saved += 1
+
+        self.refresh_literature_peptide_filter()
+        self.refresh_literature_table()
+
+        summary = f"Tracked {saved}/{len(pmids)} article(s) for {peptide_name}."
+        if failed:
+            summary += f" Failed: {', '.join(failed)}"
+        try:
+            self.query_one("#literature-status", Label).update(
+                ("✅ " if saved else "❌ ") + summary
+            )
+        except Exception:
+            pass
+        self.notify(summary, timeout=5.0, severity="information" if saved else "error")
+
     def open_vial_split_calculator(self) -> None:
         self.push_screen(
             VialSplitScreen(
@@ -1918,8 +2311,8 @@ class PeptideCalculatorApp(App):
 
         dose_desc = f"{protocol['peptide_name']} {protocol['target_dose']} {protocol['dose_unit']}"
 
-        def handle_notes(notes: str | None) -> None:
-            if notes is None:
+        def handle_notes(result: dict | None) -> None:
+            if result is None:
                 return  # cancelled
             db.log_dose(
                 self.active_profile_id,
@@ -1927,10 +2320,13 @@ class PeptideCalculatorApp(App):
                 protocol["peptide_name"],
                 protocol["target_dose"],
                 protocol["dose_unit"],
-                notes,
+                result["notes"],
+                taken_at=result["taken_at"],
             )
             self.refresh_dose_log_tables()
-            self.notify(f"Logged dose: {dose_desc}", timeout=3.0)
+            self.refresh_patient_protocols_table()
+            when = result["taken_at"] or "now"
+            self.notify(f"Logged dose: {dose_desc} ({when})", timeout=3.0)
 
         self.push_screen(LogDoseScreen(f"Log dose: {dose_desc}"), handle_notes)
 
@@ -2601,8 +2997,8 @@ class PeptideCalculatorApp(App):
         final_dose_amount = dose_amount if dose_amount is not None else 0.0
         final_dose_unit = dose_unit
 
-        def handle_notes(notes: str | None) -> None:
-            if notes is None:
+        def handle_notes(result: dict | None) -> None:
+            if result is None:
                 return
             db.log_dose(
                 current_profile_id,
@@ -2610,12 +3006,20 @@ class PeptideCalculatorApp(App):
                 final_peptide_name,
                 final_dose_amount,
                 final_dose_unit,
-                notes,
+                result["notes"],
+                taken_at=result["taken_at"],
             )
             self.refresh_dose_log_tables()
-            self.notify(f"Logged dose: {dose_desc}", timeout=3.0)
+            self.refresh_patient_protocols_table()
+            when = result["taken_at"] or "now"
+            self.notify(f"Logged dose: {dose_desc} ({when})", timeout=3.0)
 
         self.push_screen(LogDoseScreen(f"Log dose: {dose_desc}"), handle_notes)
+
+    def action_mark_reconstituted(self) -> None:
+        self.query_one(TabbedContent).active = "patient-tab"
+        self.set_focus(self.query_one("#patient-protocols-table", DataTable))
+        self.mark_selected_protocol_reconstituted()
 
     def action_show_help(self) -> None:
         self.push_screen(HelpScreen())

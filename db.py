@@ -1039,6 +1039,10 @@ def init_db():
     existing_columns = {row["name"] for row in cursor.execute("PRAGMA table_info(user_protocols)")}
     if "created_at" not in existing_columns:
         cursor.execute("ALTER TABLE user_protocols ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    # When the current vial was reconstituted -- drives beyond-use-date (BUD)
+    # warnings and "doses left in this vial" inventory. NULL = not reconstituted.
+    if "reconstituted_at" not in existing_columns:
+        cursor.execute("ALTER TABLE user_protocols ADD COLUMN reconstituted_at TIMESTAMP")
 
     # Table for logged dose-taken events (the actual adherence history, as
     # opposed to user_protocols which only tracks the planned protocol)
@@ -1072,6 +1076,12 @@ def init_db():
     )
     """)
     cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tracked_literature_pmid ON tracked_literature(pmid)")
+
+    # Optional peptide association, so articles tracked from the Reference tab
+    # can be filtered back to the peptide they were cited for.
+    lit_columns = {row["name"] for row in cursor.execute("PRAGMA table_info(tracked_literature)")}
+    if "peptide_name" not in lit_columns:
+        cursor.execute("ALTER TABLE tracked_literature ADD COLUMN peptide_name TEXT")
 
     # Populate default profile if none exist
     cursor.execute("SELECT COUNT(*) as count FROM profiles")
@@ -1273,6 +1283,22 @@ def delete_user_protocol(protocol_id):
     conn.close()
 
 
+def set_protocol_reconstituted(protocol_id, when=None):
+    """Mark a protocol's vial as reconstituted now (or at `when`), starting a
+    fresh beyond-use-date window and resetting the vial's dose inventory.
+    Pass when=False to clear the date (vial not reconstituted)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if when is False:
+        value = None
+    else:
+        value = when or datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y-%m-%d %H:%M:%S')
+    cursor.execute("UPDATE user_protocols SET reconstituted_at = ? WHERE id = ?", (value, protocol_id))
+    conn.commit()
+    conn.close()
+    return value
+
+
 def update_protocol_schedule(protocol_id, schedule, target_dose, dose_unit):
     """Overwrite a protocol's titration schedule (e.g. from the Titration
     Schedule Generator), also syncing target_dose/dose_unit to the new
@@ -1290,13 +1316,43 @@ def update_protocol_schedule(protocol_id, schedule, target_dose, dose_unit):
 
 
 # Dose Log Functions
-def log_dose(profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes=""):
+def log_dose(profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes="", taken_at=None):
+    """Record a dose. `taken_at` ("YYYY-MM-DD HH:MM:SS", naive UTC) backdates a
+    dose that was taken earlier but logged late; None means "right now"."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if taken_at:
+        cursor.execute("""
+        INSERT INTO dose_log (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes, taken_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes, taken_at))
+    else:
+        cursor.execute("""
+        INSERT INTO dose_log (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes))
+    conn.commit()
+    conn.close()
+
+
+def get_dose_log_entry_by_id(log_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM dose_log WHERE id = ?", (log_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_dose_log_entry(log_id, dose_amount, dose_unit, taken_at, notes=""):
+    """Correct an already-logged dose (wrong amount, wrong date, missing note)."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO dose_log (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
-    """, (profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes))
+    UPDATE dose_log
+    SET dose_amount = ?, dose_unit = ?, taken_at = ?, notes = ?
+    WHERE id = ?
+    """, (dose_amount, dose_unit, taken_at, notes, log_id))
     conn.commit()
     conn.close()
 
@@ -1335,7 +1391,8 @@ def get_protocol_adherence(profile_id):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, peptide_name, frequency, created_at FROM user_protocols WHERE profile_id = ? ORDER BY peptide_name ASC",
+        "SELECT id, peptide_name, frequency, created_at, reconstituted_at, vial_mg, target_dose, dose_unit "
+        "FROM user_protocols WHERE profile_id = ? ORDER BY peptide_name ASC",
         (profile_id,)
     )
     protocols = cursor.fetchall()
@@ -1372,13 +1429,41 @@ def get_protocol_adherence(profile_id):
         adherence_pct = calc.adherence_percent(logged_count, weekly_expected, days_elapsed)
         next_due_at = calc.next_dose_due_at(weekly_expected, last_taken_dt, created_dt)
 
+        reconstituted_dt = None
+        if p["reconstituted_at"]:
+            try:
+                reconstituted_dt = datetime.strptime(p["reconstituted_at"], "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                reconstituted_dt = None
+
+        # Vial inventory counts only doses drawn from the *current* vial, so it
+        # resets whenever the protocol is marked reconstituted again.
+        if reconstituted_dt:
+            cursor.execute(
+                "SELECT COUNT(*) as count FROM dose_log WHERE protocol_id = ? AND taken_at >= ?",
+                (p["id"], p["reconstituted_at"])
+            )
+            doses_used = cursor.fetchone()["count"]
+        else:
+            doses_used = logged_count
+
+        dose_mg = calc.dose_to_mg(p["target_dose"], p["dose_unit"])
+        total_doses = calc.doses_per_vial(p["vial_mg"], dose_mg)
+
         result.append({
             "protocol_id": p["id"],
             "peptide_name": p["peptide_name"],
             "frequency": p["frequency"],
             "logged_count": logged_count,
             "adherence_pct": adherence_pct,
+            "adherence_label": calc.adherence_label(adherence_pct, weekly_expected, days_elapsed),
             "next_due_at": next_due_at,
+            "reconstituted_at": reconstituted_dt,
+            "bud_expiry_at": calc.bud_expiry_at(reconstituted_dt),
+            "bud_exceeded": calc.bud_exceeded_by_duration(total_doses, weekly_expected),
+            "doses_used": doses_used,
+            "doses_total": total_doses,
+            "doses_remaining": calc.doses_remaining(total_doses, doses_used),
         })
 
     conn.close()
@@ -1504,6 +1589,7 @@ def save_tracked_article(
     pub_date: str = "",
     url: str = "",
     notes: str = "",
+    peptide_name: str = "",
 ) -> dict:
     conn = get_connection()
     cursor = conn.cursor()
@@ -1519,8 +1605,8 @@ def save_tracked_article(
         url = f"https://pubmed.ncbi.nlm.nih.gov/{clean_pmid}/"
 
     cursor.execute("""
-    INSERT INTO tracked_literature (pmid, title, authors_json, abstract, journal, pub_date, url, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tracked_literature (pmid, title, authors_json, abstract, journal, pub_date, url, notes, peptide_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(pmid) DO UPDATE SET
         title = excluded.title,
         authors_json = excluded.authors_json,
@@ -1528,8 +1614,9 @@ def save_tracked_article(
         journal = excluded.journal,
         pub_date = excluded.pub_date,
         url = excluded.url,
-        notes = COALESCE(excluded.notes, tracked_literature.notes)
-    """, (clean_pmid, title, authors_json, abstract, journal, pub_date, url, notes))
+        notes = COALESCE(excluded.notes, tracked_literature.notes),
+        peptide_name = COALESCE(NULLIF(excluded.peptide_name, ''), tracked_literature.peptide_name)
+    """, (clean_pmid, title, authors_json, abstract, journal, pub_date, url, notes, peptide_name))
     conn.commit()
 
     cursor.execute("SELECT * FROM tracked_literature WHERE pmid = ?", (clean_pmid,))
@@ -1542,10 +1629,16 @@ def save_tracked_article(
     return {}
 
 
-def get_tracked_literature() -> list[dict]:
+def get_tracked_literature(peptide_name: str | None = None) -> list[dict]:
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tracked_literature ORDER BY id DESC")
+    if peptide_name:
+        cursor.execute(
+            "SELECT * FROM tracked_literature WHERE peptide_name = ? ORDER BY id DESC",
+            (peptide_name,)
+        )
+    else:
+        cursor.execute("SELECT * FROM tracked_literature ORDER BY id DESC")
     rows = cursor.fetchall()
     conn.close()
     result = []

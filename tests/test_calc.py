@@ -207,3 +207,55 @@ def test_split_vial_aliquots_invalid_inputs():
         calc.split_vial_aliquots(10.0, 2.0, 0)
     with pytest.raises(ValueError):
         calc.split_vial_aliquots(0.0, 2.0, 2)
+
+
+def test_bud_expiry_and_labels():
+    recon = datetime(2026, 9, 1, 12, 0, 0)
+    expiry = calc.bud_expiry_at(recon)
+    assert expiry == recon + timedelta(days=calc.DEFAULT_BUD_DAYS)
+    assert calc.bud_expiry_at(None) is None
+
+    assert calc.format_bud_label(None, recon) == "Not reconstituted"
+    assert "Fresh" in calc.format_bud_label(expiry, recon)
+    assert "Expires in" in calc.format_bud_label(expiry, expiry - timedelta(days=3))
+    assert "Expires today" in calc.format_bud_label(expiry, expiry - timedelta(hours=6))
+    assert "Expired" in calc.format_bud_label(expiry, expiry + timedelta(days=4))
+
+
+def test_bud_exceeded_by_duration():
+    # 30 daily doses lasts 30 days -> outlives a 28-day BUD
+    assert calc.bud_exceeded_by_duration(30.0, 7.0) is True
+    # 10 daily doses lasts 10 days -> fine
+    assert calc.bud_exceeded_by_duration(10.0, 7.0) is False
+    # unparseable frequency can't be judged
+    assert calc.bud_exceeded_by_duration(30.0, None) is False
+
+
+def test_adherence_label_distinguishes_unmeasurable_cases():
+    assert calc.adherence_label(87.5, 7.0, 10.0) == "88%"
+    assert calc.adherence_label(None, None, 10.0) == "Freq. not recognized"
+    assert calc.adherence_label(None, 7.0, 0.2) == "Too new"
+    assert calc.adherence_label(None, 7.0, 10.0) == "N/A"
+
+
+def test_doses_remaining_and_formatting():
+    assert calc.doses_remaining(10.0, 3) == 7.0
+    assert calc.doses_remaining(2.0, 5) == 0.0  # floored, never negative
+    assert "left" in calc.format_doses_remaining(7.0, 10.0)
+    assert "reorder" in calc.format_doses_remaining(1.5, 10.0)
+    assert "Empty" in calc.format_doses_remaining(0.0, 10.0)
+    assert calc.format_doses_remaining(0.0, 0.0) == "N/A"
+
+
+def test_parse_dose_timestamp():
+    now = datetime(2026, 9, 17, 12, 0, 0)
+    assert calc.parse_dose_timestamp("", now) is None
+    assert calc.parse_dose_timestamp("now", now) is None
+    assert calc.parse_dose_timestamp("2026-09-15", now) == "2026-09-15 00:00:00"
+    assert calc.parse_dose_timestamp("2026-09-15 08:30", now) == "2026-09-15 08:30:00"
+    assert calc.parse_dose_timestamp("2026-09-15 08:30:15", now) == "2026-09-15 08:30:15"
+
+    with pytest.raises(ValueError):
+        calc.parse_dose_timestamp("garbage", now)
+    with pytest.raises(ValueError):
+        calc.parse_dose_timestamp("2099-01-01", now)

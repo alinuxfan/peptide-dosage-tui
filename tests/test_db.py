@@ -268,3 +268,101 @@ def test_export_dose_log_csv(fresh_db, tmp_path, monkeypatch):
 def test_export_dose_log_csv_unknown_profile(fresh_db, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert fresh_db.export_dose_log_csv(99999) is None
+
+
+def test_log_dose_backdating_and_editing(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "notes", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", "backdated",
+                      taken_at="2026-01-05 08:30:00")
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", "now")
+
+    log = fresh_db.get_dose_log(pid)
+    assert "2026-01-05 08:30:00" in [entry["taken_at"] for entry in log]
+
+    backdated = next(e for e in log if e["notes"] == "backdated")
+    fresh_db.update_dose_log_entry(backdated["id"], 500.0, "mcg", "2026-02-02 09:00:00", "corrected")
+
+    updated = fresh_db.get_dose_log_entry_by_id(backdated["id"])
+    assert updated["dose_amount"] == 500.0
+    assert updated["taken_at"] == "2026-02-02 09:00:00"
+    assert updated["notes"] == "corrected"
+
+
+def test_reconstitution_starts_bud_and_resets_vial_inventory(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    # 5mg vial at 250mcg per dose -> 20 doses per vial
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "notes", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    before = fresh_db.get_protocol_adherence(pid)[0]
+    assert before["reconstituted_at"] is None
+    assert before["bud_expiry_at"] is None
+    assert before["doses_total"] == 20.0
+    assert before["doses_remaining"] == 20.0
+
+    fresh_db.set_protocol_reconstituted(protocol_id, when="2026-01-01 08:00:00")
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", taken_at="2026-01-01 09:00:00")
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", taken_at="2026-01-02 09:00:00")
+
+    after = fresh_db.get_protocol_adherence(pid)[0]
+    assert after["reconstituted_at"] is not None
+    assert after["bud_expiry_at"] is not None
+    assert after["doses_used"] == 2
+    assert after["doses_remaining"] == 18.0
+
+    # Opening a new vial resets the inventory count; prior doses came from the old one
+    fresh_db.set_protocol_reconstituted(protocol_id, when="2026-02-01 08:00:00")
+    fresh_vial = fresh_db.get_protocol_adherence(pid)[0]
+    assert fresh_vial["doses_used"] == 0
+    assert fresh_vial["doses_remaining"] == 20.0
+    assert fresh_vial["logged_count"] == 2  # dose history itself is untouched
+
+
+def test_doses_before_reconstitution_dont_count_against_current_vial(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "notes", [], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg", taken_at="2020-01-01 10:00:00")
+    fresh_db.set_protocol_reconstituted(protocol_id)
+    fresh_db.log_dose(pid, protocol_id, "BPC-157", 250.0, "mcg")
+
+    entry = fresh_db.get_protocol_adherence(pid)[0]
+    assert entry["logged_count"] == 2      # full history preserved
+    assert entry["doses_used"] == 1        # but only one drawn from this vial
+
+
+def test_adherence_label_reports_why_it_is_unmeasurable(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "BPC-157", 5.0, 2.0, 250.0, "mcg", "daily", "n", [], []
+    )
+    fresh_db.add_or_update_user_protocol(
+        pid, "PT-141", 10.0, 2.0, 1.0, "mg", "as needed (PRN)", "n", [], []
+    )
+    labels = {e["peptide_name"]: e["adherence_label"] for e in fresh_db.get_protocol_adherence(pid)}
+    assert labels["BPC-157"] == "Too new"                  # brand-new protocol
+    assert labels["PT-141"] == "Freq. not recognized"      # unparseable frequency
+
+
+def test_tracked_literature_peptide_association_and_filter(fresh_db):
+    fresh_db.save_tracked_article("111", "A", ["Author A"], "abs A", peptide_name="Semax")
+    fresh_db.save_tracked_article("222", "B", ["Author B"], "abs B", peptide_name="Selank")
+    fresh_db.save_tracked_article("333", "C", ["Author C"], "abs C")
+
+    assert len(fresh_db.get_tracked_literature()) == 3
+    semax = fresh_db.get_tracked_literature("Semax")
+    assert [a["pmid"] for a in semax] == ["111"]
+
+    # Re-saving without a peptide must not wipe an existing association
+    fresh_db.save_tracked_article("111", "A v2", ["Author A"], "abs A2")
+    assert fresh_db.get_tracked_article_by_pmid("111")["peptide_name"] == "Semax"
