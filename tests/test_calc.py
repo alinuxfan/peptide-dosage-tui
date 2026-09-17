@@ -55,12 +55,48 @@ def test_parse_weekly_frequency_weekly():
 def test_parse_weekly_frequency_nx_weekly():
     assert calc.parse_weekly_frequency("3x weekly") == 3.0
     assert calc.parse_weekly_frequency("2-3x weekly") == 2.5
+    assert calc.parse_weekly_frequency("twice weekly") == 2.0
+    assert calc.parse_weekly_frequency("2x weekly") == 2.0
+
+
+def test_parse_weekly_frequency_multi_daily_and_intervals():
+    assert calc.parse_weekly_frequency("twice daily") == 14.0
+    assert calc.parse_weekly_frequency("daily (intranasal, 1-3x/day)") == 14.0
+    assert calc.parse_weekly_frequency("daily (intranasal, split AM/PM)") == 14.0
+    assert calc.parse_weekly_frequency("daily (SubQ injection, morning or split AM/PM)") == 14.0
+    assert calc.parse_weekly_frequency("daily (SubQ injection, morning)") == 7.0
+    assert calc.parse_weekly_frequency("every other day") == 3.5
+    assert calc.parse_weekly_frequency("every 2 weeks") == 0.5
 
 
 def test_parse_weekly_frequency_unrecognized():
     assert calc.parse_weekly_frequency("as needed (PRN)") is None
     assert calc.parse_weekly_frequency("") is None
     assert calc.parse_weekly_frequency(None) is None
+
+
+def test_format_vial_duration():
+    # 20 doses at daily (7/wk) -> ~20 days
+    assert "days" in calc.format_vial_duration(20.0, 7.0)
+    # 2.5 doses at weekly (1/wk) -> ~2.5 wks
+    assert "2.5 wks" in calc.format_vial_duration(2.5, 1.0)
+    # No frequency -> returns doses count
+    assert calc.format_vial_duration(10.0, None) == "10.0 doses"
+    assert calc.format_vial_duration(0.0, 1.0) == "0 doses"
+
+
+def test_syringe_draw_status():
+    draw, status = calc.syringe_draw_status(80.0)
+    assert draw == "80.0 Units"
+    assert "✓ Normal draw" in status
+
+    draw_over, status_over = calc.syringe_draw_status(160.0)
+    assert "⚠️" in draw_over
+    assert "Exceeds 100U" in status_over
+    assert "1x 100U + 1x 60.0U" in status_over
+
+    draw_zero, status_zero = calc.syringe_draw_status(0.0)
+    assert draw_zero == "0.0 Units"
 
 
 def test_adherence_percent_normal():

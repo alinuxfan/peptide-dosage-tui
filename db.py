@@ -326,11 +326,11 @@ DEFAULT_PEPTIDES = [
         "water_ml": 5.0,
         "dose": 250.0,
         "unit": "mcg",
-        "freq": "daily (intranasal, split AM/PM)",
-        "notes": "Synthetic heptapeptide analogue of tuftsin studied for anxiolytic/nootropic effects, typically administered intranasally. Standard dose: 250mcg - 500mcg daily, often cycled 2-4 weeks on.",
+        "freq": "daily (SubQ injection, morning or split AM/PM)",
+        "notes": "Synthetic heptapeptide analogue of tuftsin studied for anxiolytic, neuroprotective, and cognitive-enhancing effects. Administered via subcutaneous (SubQ) injection (typically lower abdomen or outer thigh using a 29-31G U-100 syringe) reconstituted with bacteriostatic water. Standard dose: 250mcg - 500mcg daily (morning or split AM/early afternoon), often cycled 2-4 weeks on followed by a 1-2 week break.",
         "schedule": [
-            ("Week 1-2", 250.0, "mcg"),
-            ("Week 3-4", 500.0, "mcg"),
+            ("Week 1-2 (Initiation)", 250.0, "mcg"),
+            ("Week 3-4 (Maintenance)", 500.0, "mcg"),
         ],
         "sources": [
             {"title": "Efficacy and possible mechanisms of action of a new peptide anxiolytic selank in the therapy of generalized anxiety disorders and neurasthenia", "pmid": "18454096", "url": "https://pubmed.ncbi.nlm.nih.gov/18454096/"},
@@ -343,14 +343,14 @@ DEFAULT_PEPTIDES = [
         "water_ml": 5.0,
         "dose": 300.0,
         "unit": "mcg",
-        "freq": "daily (intranasal, 1-3x/day)",
-        "notes": "ACTH(4-10) fragment analogue studied as a nootropic/neuroprotective peptide, approved in Russia as an intranasal drug. Standard research dose: 300mcg - 600mcg daily, divided across 1-3 doses.",
+        "freq": "daily (SubQ injection, morning)",
+        "notes": "ACTH(4-10) fragment analogue studied for neuroprotection, focus/cognition, and BDNF expression. Administered via subcutaneous (SubQ) injection (typically lower abdomen or outer thigh using a 29-31G U-100 syringe) reconstituted with bacteriostatic water. Morning administration is strongly recommended to avoid sleep disruption or insomnia due to its stimulating nootropic effects. Standard dose: 250mcg - 600mcg daily (morning), often cycled 2-4 weeks on (or 5 days on / 2 days off).",
         "schedule": [
-            ("Week 1-2", 300.0, "mcg"),
-            ("Week 3-4", 600.0, "mcg"),
+            ("Week 1-2 (Initiation)", 300.0, "mcg"),
+            ("Week 3-4 (Maintenance)", 600.0, "mcg"),
         ],
         "sources": [
-            {"title": "Therapy of peptic ulcer with semax peptide", "pmid": "12459874", "url": "https://pubmed.ncbi.nlm.nih.gov/12459874/"},
+            {"title": "Semax, an ACTH(4-10) analogue with nootropic properties, activates BDNF expression in the rat hippocampus and frontal cortex", "pmid": "16967870", "url": "https://pubmed.ncbi.nlm.nih.gov/16967870/"},
             {"title": "The Peptide Drug ACTH(4-7)PGP (Semax) Suppresses mRNA Transcripts Encoding Proinflammatory Mediators Induced by Reversible Ischemia of the Rat Brain", "pmid": "34097675", "url": "https://pubmed.ncbi.nlm.nih.gov/34097675/"}
         ]
     },
@@ -1056,6 +1056,23 @@ def init_db():
     )
     """)
 
+    # Table for literature tracking / PubMed article cache
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS tracked_literature (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        pmid TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        authors_json TEXT,
+        abstract TEXT,
+        journal TEXT,
+        pub_date TEXT,
+        url TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tracked_literature_pmid ON tracked_literature(pmid)")
+
     # Populate default profile if none exist
     cursor.execute("SELECT COUNT(*) as count FROM profiles")
     if cursor.fetchone()["count"] == 0:
@@ -1066,6 +1083,34 @@ def init_db():
     # so existing users don't get silently orphaned by the corrected name.
     cursor.execute("UPDATE peptides SET name = 'Tesamorelin' WHERE name = 'Tesemorelin'")
     cursor.execute("UPDATE user_protocols SET peptide_name = 'Tesamorelin' WHERE peptide_name = 'Tesemorelin'")
+
+    # Migration: Selank and Semax updated from intranasal sprays to
+    # subcutaneous (SubQ) injection protocols for both catalog templates and
+    # existing patient protocols.
+    for p in DEFAULT_PEPTIDES:
+        if p["name"] in ("Selank", "Semax"):
+            cursor.execute("""
+            UPDATE peptides
+            SET freq = ?, notes = ?, schedule_json = ?, sources_json = ?
+            WHERE name = ? AND (freq LIKE '%intranasal%' OR notes LIKE '%intranasal%')
+            """, (
+                p["freq"],
+                p["notes"],
+                json.dumps(p["schedule"]),
+                json.dumps(p["sources"]),
+                p["name"]
+            ))
+            cursor.execute("""
+            UPDATE user_protocols
+            SET frequency = ?, notes = ?, schedule_json = ?, sources_json = ?
+            WHERE peptide_name = ? AND (frequency LIKE '%intranasal%' OR notes LIKE '%intranasal%')
+            """, (
+                p["freq"],
+                p["notes"],
+                json.dumps(p["schedule"]),
+                json.dumps(p["sources"]),
+                p["name"]
+            ))
 
     # Populate default master peptides
     for p in DEFAULT_PEPTIDES:
@@ -1431,6 +1476,98 @@ def export_dose_log_csv(profile_id):
             ])
 
     return filename
+
+
+# Tracked Literature Functions
+def save_tracked_article(
+    pmid: str,
+    title: str,
+    authors: list[str] | str,
+    abstract: str,
+    journal: str = "",
+    pub_date: str = "",
+    url: str = "",
+    notes: str = "",
+) -> dict:
+    conn = get_connection()
+    cursor = conn.cursor()
+    if isinstance(authors, list):
+        authors_json = json.dumps(authors)
+    elif isinstance(authors, str):
+        authors_json = json.dumps([a.strip() for a in authors.split(",") if a.strip()])
+    else:
+        authors_json = json.dumps([])
+
+    clean_pmid = str(pmid).strip()
+    if not url:
+        url = f"https://pubmed.ncbi.nlm.nih.gov/{clean_pmid}/"
+
+    cursor.execute("""
+    INSERT INTO tracked_literature (pmid, title, authors_json, abstract, journal, pub_date, url, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(pmid) DO UPDATE SET
+        title = excluded.title,
+        authors_json = excluded.authors_json,
+        abstract = excluded.abstract,
+        journal = excluded.journal,
+        pub_date = excluded.pub_date,
+        url = excluded.url,
+        notes = COALESCE(excluded.notes, tracked_literature.notes)
+    """, (clean_pmid, title, authors_json, abstract, journal, pub_date, url, notes))
+    conn.commit()
+
+    cursor.execute("SELECT * FROM tracked_literature WHERE pmid = ?", (clean_pmid,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        d = dict(row)
+        d["authors"] = json.loads(d["authors_json"]) if d["authors_json"] else []
+        return d
+    return {}
+
+
+def get_tracked_literature() -> list[dict]:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tracked_literature ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    result = []
+    for row in rows:
+        d = dict(row)
+        d["authors"] = json.loads(d["authors_json"]) if d["authors_json"] else []
+        result.append(d)
+    return result
+
+
+def get_tracked_article_by_pmid(pmid: str | int) -> dict | None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    clean_pmid = str(pmid).strip()
+    cursor.execute("SELECT * FROM tracked_literature WHERE pmid = ?", (clean_pmid,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        d = dict(row)
+        d["authors"] = json.loads(d["authors_json"]) if d["authors_json"] else []
+        return d
+    return None
+
+
+def delete_tracked_article(article_id: int) -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tracked_literature WHERE id = ?", (article_id,))
+    conn.commit()
+    conn.close()
+
+
+def clear_tracked_literature() -> None:
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM tracked_literature")
+    conn.commit()
+    conn.close()
 
 
 if __name__ == "__main__":

@@ -46,10 +46,40 @@ def parse_weekly_frequency(freq: str) -> float | None:
         return None
     text = freq.strip().lower()
 
+    # Per-day range: e.g. '1-3x/day', '1-3x daily', '1-3 times daily'
+    day_range = re.search(r"(\d+)\s*-\s*(\d+)\s*(?:x|times)?\s*(?:/|\s*per\s*|\s*a\s*)?(?:day|daily)", text)
+    if day_range:
+        low, high = int(day_range.group(1)), int(day_range.group(2))
+        return ((low + high) / 2.0) * 7.0
+
+    # Per-day exact: e.g. '2x/day', '2x daily', '3 times a day'
+    day_exact = re.search(r"(\d+)\s*(?:x|times)?\s*(?:/|\s*per\s*|\s*a\s*)?(?:day|daily)", text)
+    if day_exact and not re.search(r"(?:every\s+other\s+day|\beod\b)", text):
+        return float(day_exact.group(1)) * 7.0
+
+    if "twice daily" in text or "2x daily" in text or "split am/pm" in text or re.search(r"\bbid\b", text):
+        return 14.0
+    if "three times daily" in text or "thrice daily" in text or re.search(r"\btid\b", text):
+        return 21.0
+
+    if "every other day" in text or re.search(r"\beod\b", text) or re.search(r"\bqod\b", text):
+        return 3.5
+
+    if "every other week" in text or "every 2 weeks" in text or re.search(r"\bq2w\b", text):
+        return 0.5
+
+    # Check range first so '2-3x weekly' is not matched as '3x weekly'
     range_match = _RANGE_X_WEEKLY_RE.search(text)
     if range_match:
         low, high = int(range_match.group(1)), int(range_match.group(2))
         return (low + high) / 2.0
+
+    if re.search(r"\b(?:twice|2x|2 times)\s*weekly\b", text) or text == "twice weekly":
+        return 2.0
+    if re.search(r"\b(?:three times|thrice|3x|3 times)\s*weekly\b", text):
+        return 3.0
+    if re.search(r"\b(?:four times|4x|4 times)\s*weekly\b", text):
+        return 4.0
 
     x_match = _X_WEEKLY_RE.search(text)
     if x_match:
@@ -115,3 +145,44 @@ def format_due_label(next_due_at: datetime | None, now: datetime) -> str:
         return "Overdue (today)" if overdue_days < 1 else f"Overdue {overdue_days:.0f}d"
 
     return "Due today" if delta_days < 1 else f"Due in {delta_days:.0f}d"
+
+
+def format_vial_duration(doses_per_vial: float, weekly_expected: float | None, freq_text: str = "") -> str:
+    """Format an estimated time duration a vial will last based on doses and frequency."""
+    if doses_per_vial <= 0:
+        return "0 doses"
+    if weekly_expected is None or weekly_expected <= 0:
+        return f"{doses_per_vial:.1f} doses"
+
+    total_days = doses_per_vial / (weekly_expected / 7.0)
+    total_weeks = doses_per_vial / weekly_expected
+
+    if total_days <= 14:
+        return f"~{total_days:.1f} days"
+    elif total_weeks <= 8:
+        return f"~{total_weeks:.1f} wks (~{total_days:.0f} days)"
+    else:
+        months = total_days / 30.4375
+        return f"~{months:.1f} mos ({total_weeks:.1f} wks)"
+
+
+def syringe_draw_status(units: float, max_capacity: float = 100.0) -> tuple[str, str]:
+    """Return a short draw string and safety status for a U-100 syringe draw.
+
+    Returns (draw_label, safety_status).
+    e.g. ("80.0 Units", "✓ Normal draw (80.0U / 100U)")
+    or ("⚠️ 160.0 Units", "⚠️ Exceeds 100U (requires 2 draws: 100U + 60.0U)")
+    """
+    if units <= 0:
+        return "0.0 Units", "—"
+    if units <= max_capacity:
+        return f"{units:.1f} Units", f"✓ Normal draw ({units:.1f}U / 100U)"
+
+    draws = int(units // max_capacity)
+    remainder = units % max_capacity
+    if remainder > 0.05:
+        draw_desc = f"{draws}x 100U + 1x {remainder:.1f}U"
+    else:
+        draw_desc = f"{draws}x 100U"
+    return f"⚠️ {units:.1f} Units", f"⚠️ Exceeds 100U ({draw_desc})"
+

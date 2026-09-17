@@ -45,6 +45,33 @@ def test_tesemorelin_migration_updates_existing_user_protocol(fresh_db):
     assert protocols[0]["peptide_name"] == "Tesamorelin"
 
 
+def test_selank_semax_migration_updates_existing_user_protocol(fresh_db):
+    profiles = fresh_db.get_profiles()
+    pid = profiles[0]["id"]
+
+    conn = fresh_db.get_connection()
+    conn.execute(
+        "INSERT INTO user_protocols (profile_id, peptide_name, vial_mg, water_ml, target_dose, dose_unit, frequency, notes) "
+        "VALUES (?, 'Selank', 11.0, 5.0, 250.0, 'mcg', 'daily (intranasal, split AM/PM)', 'intranasal spray notes')",
+        (pid,),
+    )
+    conn.execute(
+        "INSERT INTO user_protocols (profile_id, peptide_name, vial_mg, water_ml, target_dose, dose_unit, frequency, notes) "
+        "VALUES (?, 'Semax', 11.0, 5.0, 300.0, 'mcg', 'daily (intranasal, 1-3x/day)', 'intranasal spray notes')",
+        (pid,),
+    )
+    conn.commit()
+    conn.close()
+
+    fresh_db.init_db()  # re-run migration
+
+    protocols = {p["peptide_name"]: p for p in fresh_db.get_user_protocols(pid)}
+    assert "SubQ" in protocols["Selank"]["frequency"]
+    assert "subcutaneous" in protocols["Selank"]["notes"].lower()
+    assert "SubQ" in protocols["Semax"]["frequency"]
+    assert "subcutaneous" in protocols["Semax"]["notes"].lower()
+
+
 def test_add_profile_and_duplicate_rejected(fresh_db):
     new_id = fresh_db.add_profile("Charlie")
     assert new_id is not None
