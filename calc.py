@@ -186,3 +186,79 @@ def syringe_draw_status(units: float, max_capacity: float = 100.0) -> tuple[str,
         draw_desc = f"{draws}x 100U"
     return f"⚠️ {units:.1f} Units", f"⚠️ Exceeds 100U ({draw_desc})"
 
+
+def generate_titration_schedule(
+    start_dose: float,
+    target_dose: float,
+    step_increment: float,
+    weeks_per_step: float,
+    unit: str,
+    max_steps: int = 26,
+) -> list[tuple[str, float, str]]:
+    """Build a linear titration ramp from start_dose to target_dose.
+
+    Returns (phase_label, dose, unit) tuples, the same shape already used by
+    DEFAULT_PEPTIDES["schedule"] / user_protocols.schedule_json, so callers
+    can drop the result straight into existing rendering/export code.
+
+    Steps up (or down, if target_dose < start_dose) by step_increment every
+    weeks_per_step weeks, then appends a final maintenance step pinned at
+    target_dose. max_steps caps runaway schedules from a too-small increment.
+    """
+    if start_dose <= 0 or target_dose <= 0:
+        raise ValueError("Start and target dose must be greater than 0.")
+    if weeks_per_step <= 0:
+        raise ValueError("Weeks per step must be greater than 0.")
+
+    if start_dose == target_dose:
+        return [("Maintenance Dose", round(target_dose, 2), unit)]
+
+    if step_increment <= 0:
+        raise ValueError("Step increment must be greater than 0.")
+
+    direction = 1 if target_dose > start_dose else -1
+    dose = start_dose
+    week_start = 1
+    schedule: list[tuple[str, float, str]] = []
+
+    for _ in range(max_steps):
+        week_end = week_start + weeks_per_step - 1
+        label = f"Week {week_start:.0f}-{week_end:.0f}"
+        next_dose = dose + step_increment * direction
+
+        reached_target = (
+            (direction == 1 and next_dose >= target_dose)
+            or (direction == -1 and next_dose <= target_dose)
+        )
+        if reached_target:
+            schedule.append((label, round(dose, 2), unit))
+            schedule.append((f"Week {week_end + 1:.0f}+ (Maintenance)", round(target_dose, 2), unit))
+            return schedule
+
+        schedule.append((label, round(dose, 2), unit))
+        dose = next_dose
+        week_start = week_end + 1
+
+    # Safety cap reached without converging -- pin the final step at target anyway.
+    schedule.append((f"Week {week_start:.0f}+ (Maintenance)", round(target_dose, 2), unit))
+    return schedule
+
+
+def split_vial_aliquots(vial_mg: float, water_ml: float, num_splits: int) -> dict:
+    """Divide one reconstituted vial evenly into `num_splits` storage aliquots.
+
+    Splitting a homogeneous reconstituted solution doesn't change
+    concentration or per-dose draw volume -- it only divides the total mg
+    and volume across containers.
+    """
+    if num_splits < 1:
+        raise ValueError("Number of aliquots must be at least 1.")
+    if vial_mg <= 0 or water_ml <= 0:
+        raise ValueError("Vial mg and water mL must be greater than 0.")
+
+    return {
+        "aliquot_mg": vial_mg / num_splits,
+        "aliquot_ml": water_ml / num_splits,
+        "concentration_mg_ml": concentration_mg_ml(vial_mg, water_ml),
+    }
+

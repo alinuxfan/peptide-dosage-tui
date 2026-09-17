@@ -140,6 +140,26 @@ def test_add_update_get_by_id_delete_user_protocol(fresh_db):
     assert fresh_db.get_user_protocols(pid) == []
 
 
+def test_update_protocol_schedule_updates_schedule_and_target_dose(fresh_db):
+    pid = fresh_db.get_profiles()[0]["id"]
+    fresh_db.add_or_update_user_protocol(
+        pid, "Selank", 11.0, 5.0, 250.0, "mcg", "daily", "notes", [("Week 1-2", 250.0, "mcg")], []
+    )
+    protocol_id = fresh_db.get_user_protocols(pid)[0]["id"]
+
+    new_schedule = [
+        ("Week 1-2", 250.0, "mcg"),
+        ("Week 3-4", 500.0, "mcg"),
+        ("Week 5+ (Maintenance)", 750.0, "mcg"),
+    ]
+    fresh_db.update_protocol_schedule(protocol_id, new_schedule, 750.0, "mcg")
+
+    fetched = fresh_db.get_user_protocol_by_id(protocol_id)
+    assert fetched["schedule"] == [list(step) for step in new_schedule]
+    assert fetched["target_dose"] == 750.0
+    assert fetched["dose_unit"] == "mcg"
+
+
 def test_dose_log_add_list_delete(fresh_db):
     pid = fresh_db.get_profiles()[0]["id"]
     fresh_db.log_dose(pid, None, "BPC-157", 250.0, "mcg", notes="left thigh")

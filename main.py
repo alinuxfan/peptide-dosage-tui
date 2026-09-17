@@ -388,12 +388,20 @@ DataTable {
     height: 3;
 }
 
-#edit-protocol-btn, #log-dose-btn, #view-schedule-btn {
+#edit-protocol-btn, #log-dose-btn, #view-schedule-btn, #generate-titration-btn {
     background: #38bdf8;
     color: #0f172a;
     text-style: bold;
     min-width: 16;
     margin-left: 1;
+    height: 3;
+}
+
+#split-vial-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    text-style: bold;
+    margin-top: 1;
     height: 3;
 }
 
@@ -547,6 +555,313 @@ class LogDoseScreen(ModalScreen[str | None]):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         event.stop()
         self.dismiss(event.value.strip())
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+TITRATION_CSS = """
+TitrationGeneratorScreen {
+    align: center middle;
+}
+
+#titration-dialog {
+    width: 78;
+    height: auto;
+    background: #1e293b;
+    border: solid #38bdf8;
+    padding: 1 2;
+}
+
+#titration-title {
+    color: #38bdf8;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.titration-input-row {
+    layout: horizontal;
+    height: 3;
+    margin-bottom: 1;
+}
+
+.titration-input-row Label {
+    width: 22;
+    content-align: left middle;
+    color: #cbd5e1;
+}
+
+.titration-input-row Input {
+    width: 1fr;
+}
+
+#titration-status {
+    color: #f87171;
+    height: auto;
+    margin-bottom: 1;
+}
+
+#titration-preview-table {
+    height: 10;
+    border: solid #334155;
+    margin-bottom: 1;
+}
+
+#titration-buttons {
+    layout: horizontal;
+    height: 3;
+    align: right middle;
+}
+
+#titration-buttons Button {
+    margin-left: 1;
+    min-width: 14;
+}
+
+#titration-save-btn {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+#titration-cancel-btn {
+    background: #334155;
+    color: #f1f5f9;
+}
+"""
+
+
+class TitrationGeneratorScreen(ModalScreen[list | None]):
+    """Generates a linear titration ramp from a start dose to a target dose,
+    previewing it live, and dismisses with the (phase, dose, unit) schedule
+    list on Save or None on Cancel."""
+
+    CSS = TITRATION_CSS
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, peptide_name: str, unit: str, start_dose: float, target_dose: float) -> None:
+        super().__init__()
+        self.peptide_name = peptide_name
+        self.unit = unit
+        self.initial_start_dose = start_dose
+        self.initial_target_dose = target_dose
+
+    def compose(self) -> ComposeResult:
+        with Container(id="titration-dialog"):
+            yield Label(f"🧬 Generate Titration Schedule: {self.peptide_name} ({self.unit})", id="titration-title")
+            with Horizontal(classes="titration-input-row"):
+                yield Label("Start Dose:")
+                yield Input(value=f"{self.initial_start_dose:g}", id="titration-start-input")
+            with Horizontal(classes="titration-input-row"):
+                yield Label("Target Dose:")
+                yield Input(value=f"{self.initial_target_dose:g}", id="titration-target-input")
+            with Horizontal(classes="titration-input-row"):
+                yield Label("Step Increment:")
+                yield Input(value=f"{max(self.initial_target_dose - self.initial_start_dose, 1.0):g}", id="titration-step-input")
+            with Horizontal(classes="titration-input-row"):
+                yield Label("Weeks per Step:")
+                yield Input(value="2", id="titration-weeks-input")
+            yield Label("", id="titration-status")
+            yield DataTable(id="titration-preview-table", cursor_type="row")
+            with Horizontal(id="titration-buttons"):
+                yield Button("Cancel", id="titration-cancel-btn")
+                yield Button("Save to Protocol", id="titration-save-btn")
+
+    def on_mount(self) -> None:
+        table = self.query_one("#titration-preview-table", DataTable)
+        table.add_columns("Phase / Week", "Dose")
+        self.query_one("#titration-start-input", Input).focus()
+        self.regenerate_preview()
+
+    def current_schedule(self) -> list[tuple[str, float, str]] | None:
+        status = self.query_one("#titration-status", Label)
+        try:
+            start_dose = float(self.query_one("#titration-start-input", Input).value)
+            target_dose = float(self.query_one("#titration-target-input", Input).value)
+            step_increment = float(self.query_one("#titration-step-input", Input).value)
+            weeks_per_step = float(self.query_one("#titration-weeks-input", Input).value)
+        except ValueError:
+            status.update("Enter numeric values in every field.")
+            return None
+
+        try:
+            schedule = calc.generate_titration_schedule(
+                start_dose, target_dose, step_increment, weeks_per_step, self.unit
+            )
+        except ValueError as e:
+            status.update(str(e))
+            return None
+
+        status.update("")
+        return schedule
+
+    def regenerate_preview(self) -> None:
+        table = self.query_one("#titration-preview-table", DataTable)
+        table.clear()
+        schedule = self.current_schedule()
+        if not schedule:
+            return
+        for phase, dose_val, unit in schedule:
+            dose_str = f"{dose_val:.0f} mcg" if unit == "mcg" else f"{dose_val:.2f} mg"
+            table.add_row(phase, dose_str)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        event.stop()
+        self.regenerate_preview()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        if event.button.id == "titration-save-btn":
+            schedule = self.current_schedule()
+            if schedule is None:
+                return
+            self.dismiss(schedule)
+        else:
+            self.dismiss(None)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+SPLIT_CSS = """
+VialSplitScreen {
+    align: center middle;
+}
+
+#split-dialog {
+    width: 70;
+    height: auto;
+    background: #1e293b;
+    border: solid #38bdf8;
+    padding: 1 2;
+}
+
+#split-title {
+    color: #38bdf8;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#split-parent-info {
+    color: #cbd5e1;
+    margin-bottom: 1;
+    height: auto;
+}
+
+.split-input-row {
+    layout: horizontal;
+    height: 3;
+    margin-bottom: 1;
+}
+
+.split-input-row Label {
+    width: 22;
+    content-align: left middle;
+    color: #cbd5e1;
+}
+
+.split-input-row Input {
+    width: 1fr;
+}
+
+#split-status {
+    color: #f87171;
+    height: auto;
+    margin-bottom: 1;
+}
+
+#split-results {
+    color: #e2e8f0;
+    height: auto;
+    margin-bottom: 1;
+    border: solid #334155;
+    padding: 1 2;
+}
+
+#split-close-btn {
+    background: #38bdf8;
+    color: #0f172a;
+    width: 100%;
+}
+"""
+
+
+class VialSplitScreen(ModalScreen[None]):
+    """Read-only what-if calculator for splitting one reconstituted vial into
+    several equal storage aliquots. Makes no DB writes."""
+
+    CSS = SPLIT_CSS
+    BINDINGS = [Binding("escape", "cancel", show=False)]
+
+    def __init__(self, peptide_name: str, vial_mg: float, water_ml: float, target_dose: float, dose_unit: str) -> None:
+        super().__init__()
+        self.peptide_name = peptide_name
+        self.vial_mg = vial_mg
+        self.water_ml = water_ml
+        self.target_dose = target_dose
+        self.dose_unit = dose_unit
+
+    def compose(self) -> ComposeResult:
+        conc = calc.concentration_mg_ml(self.vial_mg, self.water_ml)
+        with Container(id="split-dialog"):
+            yield Label(f"🧪 Split Vial Into Aliquots: {self.peptide_name}", id="split-title")
+            yield Static(
+                f"Parent vial: {self.vial_mg:.2f} mg / {self.water_ml:.2f} mL  "
+                f"({conc:.2f} mg/mL) -- unchanged by splitting.",
+                id="split-parent-info",
+            )
+            with Horizontal(classes="split-input-row"):
+                yield Label("Number of Aliquots:")
+                yield Input(value="2", id="split-count-input")
+            yield Label("", id="split-status")
+            yield Static("", id="split-results")
+            yield Button("Close", id="split-close-btn")
+
+    def on_mount(self) -> None:
+        self.query_one("#split-count-input", Input).focus()
+        self.regenerate_results()
+
+    def regenerate_results(self) -> None:
+        status = self.query_one("#split-status", Label)
+        results = self.query_one("#split-results", Static)
+
+        try:
+            num_splits = int(self.query_one("#split-count-input", Input).value)
+        except ValueError:
+            status.update("Enter a whole number of aliquots.")
+            results.update("")
+            return
+
+        try:
+            split = calc.split_vial_aliquots(self.vial_mg, self.water_ml, num_splits)
+        except ValueError as e:
+            status.update(str(e))
+            results.update("")
+            return
+
+        status.update("")
+
+        dose_mg = calc.dose_to_mg(self.target_dose, self.dose_unit)
+        draw_ml = calc.draw_volume_ml(dose_mg, split["concentration_mg_ml"])
+        units = calc.syringe_units(draw_ml)
+        draw_label, safety_status = calc.syringe_draw_status(units)
+        doses_per_aliquot = calc.doses_per_vial(split["aliquot_mg"], dose_mg)
+
+        results.update(
+            f"Per Aliquot: {split['aliquot_mg']:.2f} mg / {split['aliquot_ml']:.2f} mL "
+            f"({split['concentration_mg_ml']:.2f} mg/mL, same as parent vial)\n\n"
+            f"Draw per Dose ({self.target_dose:g} {self.dose_unit}): {draw_ml:.3f} mL -- {draw_label}\n"
+            f"{safety_status}\n\n"
+            f"Doses per Aliquot: {doses_per_aliquot:.1f}\n"
+            f"Total Doses (all {num_splits} aliquots): {doses_per_aliquot * num_splits:.1f}"
+        )
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        event.stop()
+        self.regenerate_results()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.dismiss(None)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -759,6 +1074,7 @@ class PeptideCalculatorApp(App):
                         
                         yield Label("INSULIN SYRINGE DRAW VISUALIZER (U-100 Syringe)", classes="title-label")
                         yield Label("  Syringe representation will appear here when inputs are valid.", id="syringe-visual")
+                        yield Button("🧪 Split Vial Into Aliquots", id="split-vial-btn")
 
             with TabPane("Patient Tracker (Multi-Person)", id="patient-tab"):
                 with Vertical():
@@ -778,6 +1094,7 @@ class PeptideCalculatorApp(App):
                             yield Button("✏️ Edit Selected", id="edit-protocol-btn")
                             yield Button("💊 Log Dose Taken", id="log-dose-btn")
                             yield Button("📅 View Titration Schedule", id="view-schedule-btn")
+                            yield Button("🧬 Generate Titration Schedule", id="generate-titration-btn")
                     yield DataTable(id="patient-protocols-table", cursor_type="row")
 
             with TabPane("Dosing Schedule Planner", id="schedule-tab"):
@@ -1308,6 +1625,10 @@ class PeptideCalculatorApp(App):
             self.fetch_literature_pmid()
         elif btn_id == "delete-literature-btn":
             self.delete_selected_tracked_article()
+        elif btn_id == "generate-titration-btn":
+            self.generate_titration_for_selected_protocol()
+        elif btn_id == "split-vial-btn":
+            self.open_vial_split_calculator()
 
         self.recalculate()
         self.update_schedule_table()
@@ -1527,6 +1848,55 @@ class PeptideCalculatorApp(App):
         self.notify(
             f"Loaded titration schedule for {protocol['peptide_name']}.",
             timeout=3.0,
+        )
+
+    def generate_titration_for_selected_protocol(self) -> None:
+        table = self.query_one("#patient-protocols-table", DataTable)
+        if table.cursor_row is None or table.row_count == 0:
+            self.notify("Select a row in the patient table to generate a schedule.", severity="warning")
+            return
+
+        try:
+            protocol_id = int(table.get_cell_at((table.cursor_row, 0)))
+        except (TypeError, ValueError):
+            self.notify("Error reading selected protocol.", severity="error")
+            return
+
+        protocol = db.get_user_protocol_by_id(protocol_id)
+        if not protocol:
+            self.notify("Protocol not found.", severity="error")
+            return
+
+        start_dose = protocol["schedule"][0][1] if protocol["schedule"] else protocol["target_dose"]
+
+        def handle_result(schedule: list | None) -> None:
+            if schedule is None:
+                return
+            db.update_protocol_schedule(protocol_id, schedule, schedule[-1][1], protocol["dose_unit"])
+            self.refresh_patient_protocols_table()
+            self.refresh_schedule_selector(preferred_value=f"protocol_{protocol_id}")
+            self.update_schedule_table()
+            self.notify(f"Saved new titration schedule for {protocol['peptide_name']}.", timeout=4.0)
+
+        self.push_screen(
+            TitrationGeneratorScreen(
+                protocol["peptide_name"],
+                protocol["dose_unit"],
+                start_dose,
+                protocol["target_dose"],
+            ),
+            handle_result,
+        )
+
+    def open_vial_split_calculator(self) -> None:
+        self.push_screen(
+            VialSplitScreen(
+                self.peptide,
+                self.vial_mg,
+                self.water_ml,
+                self.target_dose,
+                self.dose_unit,
+            )
         )
 
     def log_selected_protocol_dose(self) -> None:

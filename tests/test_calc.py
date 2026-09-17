@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import pytest
+
 import calc
 
 
@@ -152,3 +154,56 @@ def test_format_due_label_upcoming():
 
 def test_format_due_label_unmeasurable():
     assert calc.format_due_label(None, datetime(2026, 1, 10)) == "N/A"
+
+
+def test_generate_titration_schedule_increasing_ramp():
+    schedule = calc.generate_titration_schedule(250.0, 1000.0, 250.0, 2.0, "mcg")
+    assert schedule == [
+        ("Week 1-2", 250.0, "mcg"),
+        ("Week 3-4", 500.0, "mcg"),
+        ("Week 5-6", 750.0, "mcg"),
+        ("Week 7+ (Maintenance)", 1000.0, "mcg"),
+    ]
+
+
+def test_generate_titration_schedule_decreasing_ramp():
+    schedule = calc.generate_titration_schedule(1000.0, 250.0, 250.0, 2.0, "mcg")
+    assert schedule == [
+        ("Week 1-2", 1000.0, "mcg"),
+        ("Week 3-4", 750.0, "mcg"),
+        ("Week 5-6", 500.0, "mcg"),
+        ("Week 7+ (Maintenance)", 250.0, "mcg"),
+    ]
+
+
+def test_generate_titration_schedule_start_equals_target():
+    assert calc.generate_titration_schedule(500.0, 500.0, 100.0, 2.0, "mcg") == [
+        ("Maintenance Dose", 500.0, "mcg")
+    ]
+
+
+def test_generate_titration_schedule_invalid_inputs():
+    with pytest.raises(ValueError):
+        calc.generate_titration_schedule(0.0, 500.0, 100.0, 2.0, "mcg")
+    with pytest.raises(ValueError):
+        calc.generate_titration_schedule(250.0, 500.0, 100.0, 0.0, "mcg")
+    with pytest.raises(ValueError):
+        calc.generate_titration_schedule(250.0, 500.0, 0.0, 2.0, "mcg")
+
+
+def test_generate_titration_schedule_max_steps_cap():
+    schedule = calc.generate_titration_schedule(1.0, 1000.0, 0.01, 1.0, "mg", max_steps=5)
+    assert len(schedule) == 6
+    assert schedule[-1] == ("Week 6+ (Maintenance)", 1000.0, "mg")
+
+
+def test_split_vial_aliquots_even_split():
+    result = calc.split_vial_aliquots(10.0, 2.0, 4)
+    assert result == {"aliquot_mg": 2.5, "aliquot_ml": 0.5, "concentration_mg_ml": 5.0}
+
+
+def test_split_vial_aliquots_invalid_inputs():
+    with pytest.raises(ValueError):
+        calc.split_vial_aliquots(10.0, 2.0, 0)
+    with pytest.raises(ValueError):
+        calc.split_vial_aliquots(0.0, 2.0, 2)

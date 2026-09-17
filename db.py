@@ -1273,6 +1273,22 @@ def delete_user_protocol(protocol_id):
     conn.close()
 
 
+def update_protocol_schedule(protocol_id, schedule, target_dose, dose_unit):
+    """Overwrite a protocol's titration schedule (e.g. from the Titration
+    Schedule Generator), also syncing target_dose/dose_unit to the new
+    maintenance level so dose logging/adherence reflect the updated plan."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cursor.execute("""
+    UPDATE user_protocols
+    SET schedule_json = ?, target_dose = ?, dose_unit = ?, updated_at = ?
+    WHERE id = ?
+    """, (json.dumps(schedule), target_dose, dose_unit, now, protocol_id))
+    conn.commit()
+    conn.close()
+
+
 # Dose Log Functions
 def log_dose(profile_id, protocol_id, peptide_name, dose_amount, dose_unit, notes=""):
     conn = get_connection()
