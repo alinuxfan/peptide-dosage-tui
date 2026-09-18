@@ -23,6 +23,7 @@ from textual.reactive import reactive
 import calc
 import db
 import ncbi
+import theme as _theme
 
 # Compact ASCII syringe drawing helper
 def make_syringe_display(units: float) -> str:
@@ -66,472 +67,18 @@ def make_syringe_display(units: float) -> str:
     return f"{top_line}\n{mid_line}\n{bottom_line}"
 
 
-CSS = """
-Screen {
-    background: #0f172a;
-    color: #e2e8f0;
-}
 
-Header {
-    background: #1e293b;
-    color: #38bdf8;
-    text-align: center;
-    height: 1;
-    border-bottom: solid #38bdf8;
-}
-
-Footer {
-    background: #1e293b;
-    color: #cbd5e1;
-    dock: bottom;
-    height: 1;
-}
-
-FooterKey {
-    background: #334155;
-    color: #38bdf8;
-    text-style: bold;
-}
-
-FooterLabel {
-    color: #cbd5e1;
-}
-
-TabbedContent {
-    margin-top: 0;
-    height: 1fr;
-}
-
-TabPane {
-    padding: 0;
-    height: 1fr;
-}
-
-.pane-container {
-    layout: grid;
-    grid-size: 2;
-    grid-columns: 1fr 1fr;
-    grid-gutter: 1;
-    padding: 0 1;
-    height: 1fr;
-}
-
-.sidebar-panel {
-    background: #1e293b;
-    border: solid #334155;
-    padding: 0 1;
-    height: 1fr;
-}
-
-.results-panel {
-    background: #1e293b;
-    border: solid #334155;
-    padding: 0 1;
-    layout: vertical;
-    height: 1fr;
-}
-
-.title-label {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 0;
-    border-bottom: solid #334155;
-}
-
-.input-label {
-    text-style: bold;
-    margin-top: 1;
-    color: #cbd5e1;
-}
-
-.preset-row {
-    layout: horizontal;
-    height: 3;
-    margin-bottom: 0;
-    margin-top: 0;
-}
-
-.preset-row Button {
-    margin-right: 1;
-    min-width: 6;
-    height: 3;
-    background: #334155;
-    color: #f1f5f9;
-}
-
-.preset-row Button:hover {
-    background: #475569;
-}
-
-Input {
-    background: #0f172a;
-    border: solid #475569;
-    color: #f1f5f9;
-    margin-bottom: 0;
-    height: 3;
-}
-
-Select {
-    margin-bottom: 0;
-    height: 3;
-}
-
-SelectCurrent {
-    background: #0f172a;
-    border: solid #38bdf8;
-    color: #38bdf8;
-    text-style: bold;
-    height: 3;
-}
-
-.result-row {
-    layout: horizontal;
-    height: 2;
-    content-align: left middle;
-    border-bottom: solid #334155;
-}
-
-.result-label {
-    width: 24;
-    text-style: bold;
-    color: #94a3b8;
-}
-
-.result-val {
-    color: #f8fafc;
-    text-style: bold;
-}
-
-#syringe-visual {
-    background: #0f172a;
-    border: double #38bdf8;
-    padding: 0 1;
-    margin-top: 0;
-    margin-bottom: 0;
-    height: 5;
-    color: #38bdf8;
-}
-
-.help-box {
-    background: #1e293b;
-    border: solid #334155;
-    padding: 0 1;
-    margin-top: 0;
-    color: #94a3b8;
-}
-
-.action-bar {
-    layout: horizontal;
-    height: 3;
-    align: right middle;
-    padding: 0 1;
-    background: #1e293b;
-    border-bottom: solid #334155;
-}
-
-.global-profile-bar {
-    layout: horizontal;
-    height: 3;
-    align: left middle;
-    padding: 0 1;
-    background: #1e293b;
-    border-bottom: solid #38bdf8;
-}
-
-.global-profile-bar .action-title {
-    margin-right: 1;
-}
-
-.patient-controls-bar {
-    layout: vertical;
-    padding: 0 1;
-    background: #1e293b;
-    border-bottom: solid #334155;
-    height: 10;
-}
-
-.control-row {
-    layout: horizontal;
-    height: 3;
-    align: left middle;
-    margin-bottom: 0;
-}
-
-#profile-select {
-    width: 25;
-    margin-right: 1;
-}
-
-#patient-add-peptide-select {
-    width: 25;
-    margin-right: 1;
-}
-
-#new-profile-input {
-    width: 22;
-    margin-right: 1;
-}
-
-#schedule-protocol-select {
-    width: 48;
-    margin-right: 1;
-}
-
-.schedule-controls-bar {
-    layout: vertical;
-    padding: 0 1;
-    background: #1e293b;
-    border-bottom: solid #334155;
-    height: auto;
-}
-
-.schedule-banner-row {
-    layout: horizontal;
-    align: left middle;
-    background: #0f172a;
-    border: solid #334155;
-    padding: 0 1;
-    margin-top: 1;
-    margin-bottom: 1;
-    height: 3;
-}
-
-#schedule-banner-text {
-    color: #38bdf8;
-    text-style: bold;
-}
-
-.action-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-right: 1;
-}
-
-DataTable {
-    height: 1fr;
-    border: solid #334155;
-    background: #0f172a;
-    margin: 0 1;
-}
-
-.info-pane {
-    padding: 1 2;
-    height: 100%;
-}
-
-.info-section {
-    background: #1e293b;
-    border: solid #334155;
-    padding: 1 2;
-    margin-bottom: 1;
-    height: auto;
-}
-
-.info-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 1;
-}
-
-.info-text {
-    color: #cbd5e1;
-    margin-bottom: 1;
-    height: auto;
-}
-
-.source-link {
-    color: #38bdf8;
-    margin-left: 2;
-    margin-bottom: 1;
-    height: auto;
-}
-
-#save-target-profiles {
-    height: 6;
-    border: solid #334155;
-    background: #0f172a;
-    margin-bottom: 1;
-}
-
-#save-profile-protocol-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    margin-top: 1;
-    height: 3;
-}
-
-#save-schedule-btn, #export-patient-sheet-btn, #export-dose-log-csv-btn {
-    background: #10b981;
-    color: #0f172a;
-    text-style: bold;
-    min-width: 24;
-    margin-left: 1;
-    height: 3;
-}
-
-#add-profile-btn, #quick-add-peptide-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    min-width: 16;
-    margin-left: 1;
-    height: 3;
-}
-
-#delete-protocol-btn, #remove-profile-btn, #delete-log-btn {
-    background: #f43f5e;
-    color: #ffffff;
-    text-style: bold;
-    min-width: 18;
-    margin-left: 1;
-    height: 3;
-}
-
-#edit-protocol-btn, #log-dose-btn, #view-schedule-btn, #generate-titration-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    min-width: 16;
-    margin-left: 1;
-    height: 3;
-}
-
-#split-vial-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    margin-top: 1;
-    height: 3;
-}
-
-.track-sources-btn {
-    background: #334155;
-    color: #38bdf8;
-    text-style: bold;
-    margin-top: 1;
-    height: 3;
-}
-
-#mark-reconstituted-btn, #edit-log-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    min-width: 16;
-    margin-left: 1;
-    height: 3;
-}
-
-#literature-peptide-filter {
-    width: 46;
-    margin-left: 1;
-}
-
-#adherence-table {
-    height: 10;
-    margin: 0 1;
-}
-"""
-
-CONFIRM_CSS = """
-ConfirmScreen {
-    align: center middle;
-}
-
-#confirm-dialog {
-    width: 60;
-    height: auto;
-    background: #1e293b;
-    border: solid #f43f5e;
-    padding: 1 2;
-}
-
-#confirm-message {
-    color: #f1f5f9;
-    margin-bottom: 1;
-    height: auto;
-}
-
-#confirm-buttons {
-    layout: horizontal;
-    height: 3;
-    align: right middle;
-}
-
-#confirm-buttons Button {
-    margin-left: 1;
-    min-width: 10;
-}
-
-#confirm-yes {
-    background: #f43f5e;
-    color: #ffffff;
-}
-
-#confirm-no {
-    background: #334155;
-    color: #f1f5f9;
-}
-"""
-
-LOG_DOSE_CSS = """
-LogDoseScreen {
-    align: center middle;
-}
-
-#logdose-dialog {
-    width: 60;
-    height: auto;
-    background: #1e293b;
-    border: solid #38bdf8;
-    padding: 1 2;
-}
-
-#logdose-message {
-    color: #f1f5f9;
-    margin-bottom: 1;
-    height: auto;
-}
-
-#logdose-notes {
-    margin-bottom: 1;
-}
-
-#logdose-taken-at {
-    margin-bottom: 1;
-}
-
-.logdose-field-label {
-    color: #cbd5e1;
-    height: 1;
-}
-
-#logdose-status {
-    color: #f87171;
-    height: auto;
-}
-
-#logdose-buttons {
-    layout: horizontal;
-    height: 3;
-    align: right middle;
-}
-
-#logdose-buttons Button {
-    margin-left: 1;
-    min-width: 10;
-}
-
-#logdose-yes {
-    background: #38bdf8;
-    color: #0f172a;
-}
-
-#logdose-no {
-    background: #334155;
-    color: #f1f5f9;
-}
-"""
+# Build initial CSS from the active Omarchy theme (falls back to defaults
+# when running outside Omarchy or when the colors.toml cannot be read).
+_THEME_CSS = _theme.build_all_css()
+
+CSS           = _THEME_CSS["main"]
+CONFIRM_CSS   = _THEME_CSS["confirm"]
+LOG_DOSE_CSS  = _THEME_CSS["log_dose"]
+EDIT_DOSE_CSS = _THEME_CSS["edit_dose"]
+TITRATION_CSS = _THEME_CSS["titration"]
+SPLIT_CSS     = _THEME_CSS["split"]
+HELP_CSS      = _THEME_CSS["help"]
 
 
 class ConfirmScreen(ModalScreen[bool]):
@@ -615,58 +162,6 @@ class LogDoseScreen(ModalScreen[dict | None]):
         self.dismiss(None)
 
 
-EDIT_DOSE_CSS = """
-EditDoseScreen {
-    align: center middle;
-}
-
-#editdose-dialog {
-    width: 64;
-    height: auto;
-    background: #1e293b;
-    border: solid #38bdf8;
-    padding: 1 2;
-}
-
-#editdose-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 1;
-}
-
-.editdose-field-label {
-    color: #cbd5e1;
-    height: 1;
-}
-
-#editdose-status {
-    color: #f87171;
-    height: auto;
-}
-
-#editdose-buttons {
-    layout: horizontal;
-    height: 3;
-    align: right middle;
-}
-
-#editdose-buttons Button {
-    margin-left: 1;
-    min-width: 12;
-}
-
-#editdose-save {
-    background: #38bdf8;
-    color: #0f172a;
-}
-
-#editdose-cancel {
-    background: #334155;
-    color: #f1f5f9;
-}
-"""
-
-
 class EditDoseScreen(ModalScreen[dict | None]):
     """Corrects an already-logged dose (wrong amount, unit, date, or note).
     Dismisses with the updated field dict, or None on cancel."""
@@ -744,76 +239,6 @@ class EditDoseScreen(ModalScreen[dict | None]):
 
     def action_cancel(self) -> None:
         self.dismiss(None)
-
-
-TITRATION_CSS = """
-TitrationGeneratorScreen {
-    align: center middle;
-}
-
-#titration-dialog {
-    width: 78;
-    height: auto;
-    background: #1e293b;
-    border: solid #38bdf8;
-    padding: 1 2;
-}
-
-#titration-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 1;
-}
-
-.titration-input-row {
-    layout: horizontal;
-    height: 3;
-    margin-bottom: 1;
-}
-
-.titration-input-row Label {
-    width: 22;
-    content-align: left middle;
-    color: #cbd5e1;
-}
-
-.titration-input-row Input {
-    width: 1fr;
-}
-
-#titration-status {
-    color: #f87171;
-    height: auto;
-    margin-bottom: 1;
-}
-
-#titration-preview-table {
-    height: 10;
-    border: solid #334155;
-    margin-bottom: 1;
-}
-
-#titration-buttons {
-    layout: horizontal;
-    height: 3;
-    align: right middle;
-}
-
-#titration-buttons Button {
-    margin-left: 1;
-    min-width: 14;
-}
-
-#titration-save-btn {
-    background: #38bdf8;
-    color: #0f172a;
-}
-
-#titration-cancel-btn {
-    background: #334155;
-    color: #f1f5f9;
-}
-"""
 
 
 class TitrationGeneratorScreen(ModalScreen[list | None]):
@@ -908,69 +333,6 @@ class TitrationGeneratorScreen(ModalScreen[list | None]):
         self.dismiss(None)
 
 
-SPLIT_CSS = """
-VialSplitScreen {
-    align: center middle;
-}
-
-#split-dialog {
-    width: 70;
-    height: auto;
-    background: #1e293b;
-    border: solid #38bdf8;
-    padding: 1 2;
-}
-
-#split-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 1;
-}
-
-#split-parent-info {
-    color: #cbd5e1;
-    margin-bottom: 1;
-    height: auto;
-}
-
-.split-input-row {
-    layout: horizontal;
-    height: 3;
-    margin-bottom: 1;
-}
-
-.split-input-row Label {
-    width: 22;
-    content-align: left middle;
-    color: #cbd5e1;
-}
-
-.split-input-row Input {
-    width: 1fr;
-}
-
-#split-status {
-    color: #f87171;
-    height: auto;
-    margin-bottom: 1;
-}
-
-#split-results {
-    color: #e2e8f0;
-    height: auto;
-    margin-bottom: 1;
-    border: solid #334155;
-    padding: 1 2;
-}
-
-#split-close-btn {
-    background: #38bdf8;
-    color: #0f172a;
-    width: 100%;
-}
-"""
-
-
 class VialSplitScreen(ModalScreen[None]):
     """Read-only what-if calculator for splitting one reconstituted vial into
     several equal storage aliquots. Makes no DB writes."""
@@ -1053,50 +415,6 @@ class VialSplitScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
-HELP_CSS = """
-HelpScreen {
-    align: center middle;
-}
-
-#help-dialog {
-    width: 74;
-    height: auto;
-    background: #1e293b;
-    border: solid #38bdf8;
-    padding: 1 2;
-}
-
-#help-title {
-    color: #38bdf8;
-    text-style: bold;
-    margin-bottom: 1;
-    text-align: center;
-}
-
-.help-cmd-row {
-    layout: horizontal;
-    height: 1;
-    margin-bottom: 0;
-}
-
-.help-cmd-key {
-    width: 20;
-    color: #38bdf8;
-    text-style: bold;
-}
-
-.help-cmd-desc {
-    color: #e2e8f0;
-}
-
-#help-close-btn {
-    margin-top: 1;
-    background: #38bdf8;
-    color: #0f172a;
-    text-style: bold;
-    width: 100%;
-}
-"""
 
 
 class HelpScreen(ModalScreen[None]):
@@ -1370,6 +688,44 @@ class PeptideCalculatorApp(App):
         self.refresh_literature_peptide_filter()
         self.refresh_literature_table()
         self.recalculate()
+
+        # Poll every 2 s for an Omarchy theme change.
+        self.set_interval(2, self._check_omarchy_theme)
+
+    def _check_omarchy_theme(self) -> None:
+        """Called every 2 s; reloads CSS when the Omarchy theme slug changes."""
+        if not _theme.theme_changed_on_disk():
+            return
+
+        new_css = _theme.build_all_css()
+
+        # Textual keys class-level CSS as (source_file, 'ClassName.CSS').
+        # Find every such key that belongs to *our* code (not textual itself),
+        # and replace its content in-place so reparse() picks up the new CSS.
+        from textual.css.stylesheet import CssSource
+        stylesheet = self.app.stylesheet
+        textual_pkg = "site-packages/textual"
+
+        # Collect all our CSS keys and their stored content, ordered so we
+        # can map each to the right replacement CSS block.
+        our_keys = [
+            key for key in stylesheet.source
+            if key[1].endswith(".CSS") and textual_pkg not in key[0]
+        ]
+
+        # Pair each key with a new CSS string by position (same order they
+        # were added during class definition).
+        new_css_values = list(new_css.values())
+        for i, key in enumerate(our_keys):
+            if i >= len(new_css_values):
+                break
+            old = stylesheet.source[key]
+            stylesheet.source[key] = CssSource(
+                new_css_values[i], old.is_defaults, old.tie_breaker, old.scope
+            )
+
+        self.refresh_css(animate=False)
+
 
     def refresh_profiles(self) -> None:
         profiles = db.get_profiles()
