@@ -71,34 +71,50 @@ The application includes pre-configured master templates and accredited scientif
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Installation
 
-### Prerequisites
-- **Python 3.10+**
-- [`uv`](https://github.com/astral-sh/uv) package manager (recommended) or standard `pip`.
+### One-liner install (recommended)
 
-### Quickstart with `uv`
+Requires [`uv`](https://docs.astral.sh/uv/). If you don't have it:
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/alinuxfan/peptide-dosage-tui.git
-   cd peptide-dosage-tui
-   ```
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-2. **Run the TUI Application**:
-   ```bash
-   uv run python main.py
-   ```
+Then install the tool globally:
 
-### Standard Setup with `pip`
+```bash
+uv tool install git+https://github.com/alinuxfan/peptide-dosage-tui
+```
+
+This downloads the package, creates an isolated virtual environment, and drops a `peptide-tui` binary into `~/.local/bin`. After that just run:
+
+```bash
+peptide-tui
+```
+
+To upgrade later:
+
+```bash
+uv tool upgrade peptide-tui
+```
+
+To uninstall:
+
+```bash
+uv tool uninstall peptide-tui
+```
+
+### Omarchy theme integration
+
+On [Omarchy](https://omarchy.org/), the TUI automatically reads your active theme's `colors.toml` at startup and live-reloads colors within 2 seconds whenever you switch themes with `omarchy theme set <name>`. No configuration needed.
+
+### Development setup
 
 ```bash
 git clone https://github.com/alinuxfan/peptide-dosage-tui.git
 cd peptide-dosage-tui
-python3 -m venv .venv
-source .venv/bin/activate
-pip install textual rich
-python main.py
+uv run python main.py
 ```
 
 ---
@@ -132,13 +148,16 @@ python main.py
 ```
 peptide-dosage-tui/
 ├── main.py        # Core Textual TUI application layout, widgets, & handlers
+├── theme.py       # Omarchy theme integration & CSS generation
 ├── db.py          # SQLite database connection, schema seeding, & export helpers
 ├── calc.py        # Shared dosing-math and adherence-heuristic functions
+├── ncbi.py        # PubMed / NCBI literature fetch helpers
 ├── tests/         # pytest suite (calc.py and db.py)
 ├── peptides.db    # Local SQLite database (created on first run)
 ├── pyproject.toml # Project dependencies & metadata
 └── README.md      # Project documentation
 ```
+
 
 ---
 
