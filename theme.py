@@ -1,133 +1,111 @@
 """
-theme.py – Omarchy-aware CSS generation for the Peptide Dosage TUI.
+theme.py -- Dynamic CSS generator driven by Omarchy theme colors.
 
-Reads the active Omarchy theme's ``colors.toml`` at startup and whenever the
-theme changes.  ``PeptideCalculatorApp`` polls ``theme_changed_on_disk()``
-every 2 seconds; when it returns True the app reloads CSS across all screens.
-
-No hooks, sentinel files, or extra installs needed — works on any machine
-that has Omarchy.  Falls back to the original hardcoded palette when running
-outside Omarchy.
+Omarchy writes its current palette to ~/.config/omarchy/current/theme/colors.toml
+and the active theme slug to ~/.config/omarchy/current/theme.
+This module reads that palette and injects it into every screen's stylesheet.
+If Omarchy is not present or the file cannot be read, sensible dark-mode defaults
+are used so the app looks great anywhere.
 """
 
-import pathlib
+import os
 import tomllib
+from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
+# Paths managed by Omarchy
+_OMARCHY_BASE = Path.home() / ".config" / "omarchy" / "current"
+_THEME_FILE   = _OMARCHY_BASE / "theme"
+_COLORS_FILE  = _OMARCHY_BASE / "theme" / "colors.toml"
 
-_OMARCHY_THEMES_USER  = pathlib.Path.home() / ".config" / "omarchy" / "themes"
-_OMARCHY_THEMES_STOCK = pathlib.Path("/usr/share/omarchy/themes")
-
-# Omarchy writes the raw slug (e.g. "tokyo-night") to this file when the
-# theme changes.  Reading it directly is faster and more accurate than
-# parsing the pretty-printed output of `omarchy theme current`.
-_THEME_NAME_FILE = pathlib.Path.home() / ".local/state/omarchy/current/theme.name"
-
-
-# ---------------------------------------------------------------------------
-# Color loading
-# ---------------------------------------------------------------------------
-
-# Default fallback palette (original Slate/Sky hardcoded colors)
+# Fallback palette -- clean, high-contrast dark theme inspired by Tokyo Night / Catppuccin
 _DEFAULTS = {
-    "background":         "#0f172a",
-    "dark_background":    "#0f172a",
-    "darker_background":  "#0f172a",
-    "lighter_background": "#1e293b",
-    "foreground":         "#e2e8f0",
-    "dark_foreground":    "#94a3b8",
-    "light_foreground":   "#cbd5e1",
-    "bright_foreground":  "#f1f5f9",
-    "accent":             "#38bdf8",
-    "selection":          "#334155",
-    "muted":              "#475569",
-    "red":                "#f43f5e",
-    "green":              "#10b981",
+    "background":         "#0f172a",  # slate-900: deep dark background
+    "lighter_background": "#1e293b",  # slate-800: panels, modals, inputs
+    "selection":          "#334155",  # slate-700: borders, active rows, dividers
+    "foreground":         "#f8fafc",  # slate-50:  primary readable text
+    "bright_foreground":  "#ffffff",  # pure white: headers, highlights
+    "dark_foreground":    "#94a3b8",  # slate-400: secondary text, labels, hints
+    "accent":             "#38bdf8",  # sky-400:   brand color, visualizer, buttons
+    "muted":              "#475569",  # slate-600: subtle borders, inactive buttons
+    "red":                "#f43f5e",  # rose-500:  destructive actions, warnings
+    "green":              "#10b981",  # emerald-500: success, confirmations
+    "yellow":             "#f59e0b",  # amber-500: caution, alerts
     "mode":               "dark",
 }
 
 
-def _current_theme_slug() -> str:
-    """Return the active Omarchy theme slug (e.g. 'vikings'), or ''."""
+def load_palette() -> dict:
+    """Read Omarchy's colors.toml, falling back to _DEFAULTS on any error."""
     try:
-        return _THEME_NAME_FILE.read_text().strip()
+        if not _COLORS_FILE.exists():
+            return dict(_DEFAULTS)
+        with open(_COLORS_FILE, "rb") as f:
+            data = tomllib.load(f)
+        # Flatten: colors.toml commonly has [colors] section
+        colors = data.get("colors", data)
+        palette = dict(_DEFAULTS)
+        for k in _DEFAULTS:
+            if k in colors:
+                palette[k] = str(colors[k])
+        # Also check mode (light vs dark) if specified
+        if "mode" in data:
+            palette["mode"] = str(data["mode"])
+        return palette
     except Exception:
-        return ""
+        return dict(_DEFAULTS)
 
 
-def load_colors() -> dict:
-    """
-    Read the active Omarchy theme's colors.toml and return a merged dict.
-
-    Lookup order (first hit wins):
-      1. ~/.config/omarchy/themes/<slug>/colors.toml  (user overlay / custom)
-      2. /usr/share/omarchy/themes/<slug>/colors.toml (stock)
-      3. Built-in fallback palette (runs fine outside Omarchy)
-    """
-    slug = _current_theme_slug()
-    if slug:
-        for base in (_OMARCHY_THEMES_USER, _OMARCHY_THEMES_STOCK):
-            candidate = base / slug / "colors.toml"
-            if candidate.exists():
-                try:
-                    with open(candidate, "rb") as fh:
-                        raw = tomllib.load(fh)
-                    # Merge over defaults so every key is always present
-                    merged = dict(_DEFAULTS)
-                    merged.update(raw)
-                    return merged
-                except Exception:
-                    pass  # Malformed TOML → fall through to defaults
-    return dict(_DEFAULTS)
+def get_current_theme_slug() -> str:
+    """Return the active theme name (e.g. 'catppuccin-mocha'), or '' if unknown."""
+    try:
+        if _THEME_FILE.is_symlink():
+            return Path(os.readlink(_THEME_FILE)).name
+        if _THEME_FILE.is_file():
+            return _THEME_FILE.read_text().strip()
+    except Exception:
+        pass
+    return ""
 
 
-# ---------------------------------------------------------------------------
-# Live-reload helper — watch theme.name mtime
-# ---------------------------------------------------------------------------
-
-# Watching the mtime of theme.name is both faster (no subprocess) and
-# correct — Omarchy rewrites this file whenever the theme changes.
-_last_theme_name_mtime: float = 0.0
-try:
-    _last_theme_name_mtime = _THEME_NAME_FILE.stat().st_mtime
-except Exception:
-    pass
+# State cache for live reload detection
+_last_slug: str = get_current_theme_slug()
 
 
 def theme_changed_on_disk() -> bool:
-    """Return True if Omarchy has changed the active theme since the last call.
-    Always returns False when running outside Omarchy."""
-    global _last_theme_name_mtime
-    try:
-        mtime = _THEME_NAME_FILE.stat().st_mtime
-    except Exception:
-        return False
-    if mtime != _last_theme_name_mtime:
-        _last_theme_name_mtime = mtime
+    """True if Omarchy switched themes since this was last checked."""
+    global _last_slug
+    current = get_current_theme_slug()
+    if current and current != _last_slug:
+        _last_slug = current
         return True
     return False
 
 
+# ---------------------------------------------------------------------------
+# Stylesheet generators
+# ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# CSS builders
-# ---------------------------------------------------------------------------
+def _hex(color_str: str) -> str:
+    """Ensure a color string is a valid hex color (#rrggbb)."""
+    color_str = color_str.strip()
+    if not color_str.startswith("#"):
+        color_str = f"#{color_str}"
+    return color_str
+
 
 def build_main_css(c: dict) -> str:
+    """Generate the root stylesheet for PeptideCalculatorApp."""
     bg        = c["background"]
     bg_light  = c["lighter_background"]
-    bg_dark   = c["dark_background"]
     sel       = c["selection"]
-    muted     = c["muted"]
     fg        = c["foreground"]
-    fg_muted  = c["dark_foreground"]
-    fg_light  = c["light_foreground"]
     fg_bright = c["bright_foreground"]
+    fg_muted  = c["dark_foreground"]
+    muted     = c["muted"]
     accent    = c["accent"]
     red       = c["red"]
     green     = c["green"]
+    yellow    = c.get("yellow", "#f59e0b")
 
     return f"""
 Screen {{
@@ -137,32 +115,65 @@ Screen {{
 
 Header {{
     background: {bg_light};
-    color: {accent};
-    text-align: center;
+    color: {fg_bright};
+    dock: top;
     height: 1;
-    border-bottom: solid {accent};
 }}
 
 Footer {{
     background: {bg_light};
-    color: {fg_light};
+    color: {fg_muted};
     dock: bottom;
     height: 1;
 }}
 
-FooterKey {{
-    background: {sel};
-    color: {accent};
-    text-style: bold;
-}}
-
-FooterLabel {{
-    color: {fg_light};
+.global-profile-bar {{
+    background: {bg_light};
+    height: 3;
+    padding: 0 1;
+    align: left middle;
+    border-bottom: solid {sel};
 }}
 
 TabbedContent {{
-    margin-top: 0;
     height: 1fr;
+}}
+
+Tabs {{
+    background: {bg_light};
+}}
+
+Tabs .underline--bar {{
+    color: {accent};
+    background: {accent};
+}}
+
+Tabs:focus .underline--bar {{
+    color: {accent};
+    background: {accent};
+}}
+
+ContentTab {{
+    background: {bg_light};
+    color: {fg_muted};
+    padding: 0 2;
+}}
+
+ContentTab:hover {{
+    background: {sel};
+    color: {fg_bright};
+}}
+
+ContentTab.-active {{
+    background: {accent};
+    color: {bg};
+    text-style: bold;
+}}
+
+Tabs:focus ContentTab.-active {{
+    background: {accent};
+    color: {bg};
+    text-style: bold;
 }}
 
 TabPane {{
@@ -171,67 +182,76 @@ TabPane {{
 }}
 
 .pane-container {{
-    layout: grid;
     grid-size: 2;
     grid-columns: 1fr 1fr;
-    grid-gutter: 1;
-    padding: 0 1;
-    height: 1fr;
+    height: 100%;
+    padding: 0;
 }}
 
 .sidebar-panel {{
-    background: {bg_light};
-    border: solid {sel};
-    padding: 0 1;
-    height: 1fr;
+    padding: 1 2;
+    height: 100%;
+    border-right: solid {sel};
+    background: {bg};
 }}
 
 .results-panel {{
-    background: {bg_light};
-    border: solid {sel};
-    padding: 0 1;
-    layout: vertical;
-    height: 1fr;
+    padding: 1 2;
+    height: 100%;
+    background: {bg};
 }}
 
 .title-label {{
-    color: {accent};
     text-style: bold;
-    margin-bottom: 0;
+    color: {accent};
+    margin-top: 1;
+    margin-bottom: 1;
     border-bottom: solid {sel};
 }}
 
-.input-label {{
+.action-title {{
+    color: {fg_bright};
     text-style: bold;
+    margin-right: 1;
+    height: 3;
+    content-align: left middle;
+}}
+
+.input-label {{
+    color: {fg_muted};
     margin-top: 1;
-    color: {fg_light};
 }}
 
 .preset-row {{
     layout: horizontal;
     height: 3;
-    margin-bottom: 0;
-    margin-top: 0;
+    margin-bottom: 1;
 }}
 
 .preset-row Button {{
-    margin-right: 1;
     min-width: 6;
+    margin-right: 1;
     height: 3;
     background: {sel};
     color: {fg_bright};
+    border: none;
 }}
 
 .preset-row Button:hover {{
-    background: {muted};
+    background: {accent};
+    color: {bg};
 }}
 
 Input {{
-    background: {bg};
-    border: solid {muted};
+    background: {bg_light};
     color: {fg_bright};
-    margin-bottom: 0;
+    border: solid {sel};
+    margin-bottom: 1;
     height: 3;
+}}
+
+Input:focus {{
+    border: solid {accent};
 }}
 
 Select {{
@@ -240,23 +260,33 @@ Select {{
 }}
 
 SelectCurrent {{
-    background: {bg};
-    border: solid {accent};
-    color: {accent};
-    text-style: bold;
-    height: 3;
+    background: {bg_light};
+    color: {fg_bright};
+    border: solid {sel};
+}}
+
+SelectionList {{
+    background: {bg_light};
+    color: {fg};
+    border: solid {sel};
+    height: 5;
+    margin-bottom: 1;
+}}
+
+.help-box {{
+    color: {fg_muted};
+    margin-bottom: 1;
 }}
 
 .result-row {{
     layout: horizontal;
-    height: 2;
-    content-align: left middle;
-    border-bottom: solid {sel};
+    height: 3;
+    align: left middle;
+    border-bottom: dashed {sel};
 }}
 
 .result-label {{
-    width: 24;
-    text-style: bold;
+    width: 30;
     color: {fg_muted};
 }}
 
@@ -265,44 +295,92 @@ SelectCurrent {{
     text-style: bold;
 }}
 
-#syringe-visual {{
-    background: {bg};
-    border: double {accent};
-    padding: 0 1;
-    margin-top: 0;
-    margin-bottom: 0;
-    height: 5;
+.highlight-val {{
     color: {accent};
 }}
 
-.help-box {{
-    background: {bg_light};
+.hero-card {{
+    background: {bg};
+    border: double {accent};
+    padding: 1;
+    margin-top: 1;
+    margin-bottom: 1;
+    height: auto;
+    content-align: center middle;
+}}
+
+.hero-title {{
+    color: {fg_muted};
+    text-style: bold;
+    text-align: center;
+}}
+
+.hero-value {{
+    color: {accent};
+    text-style: bold;
+    text-align: center;
+}}
+
+#calc-safety-badge {{
+    text-align: center;
+    color: {green};
+    text-style: bold;
+    height: auto;
+    margin-top: 0;
+}}
+
+#calc-edit-mode-banner {{
+    background: {sel};
+    color: {accent};
+    text-style: bold;
+    padding: 0 1;
+    margin-top: 1;
+    margin-bottom: 0;
+    height: auto;
+    border-left: wide {accent};
+}}
+
+#syringe-visual {{
+    background: {bg};
     border: solid {sel};
     padding: 0 1;
     margin-top: 0;
-    color: {fg_muted};
+    margin-bottom: 1;
+    height: 5;
+    color: {accent};
 }}
 
 .action-bar {{
     layout: horizontal;
     height: 3;
-    align: right middle;
+    align: left middle;
     padding: 0 1;
     background: {bg_light};
     border-bottom: solid {sel};
 }}
 
-.global-profile-bar {{
-    layout: horizontal;
+.action-bar Button {{
+    margin-left: 1;
     height: 3;
-    align: left middle;
-    padding: 0 1;
-    background: {bg_light};
-    border-bottom: solid {accent};
 }}
 
-.global-profile-bar .action-title {{
+.action-bar Input {{
+    width: 40;
+    margin-bottom: 0;
     margin-right: 1;
+}}
+
+.action-bar Select {{
+    width: 30;
+    margin-bottom: 0;
+    margin-right: 1;
+}}
+
+.ambient-status {{
+    color: {fg_bright};
+    margin-left: 2;
+    height: auto;
+    content-align: left middle;
 }}
 
 .patient-controls-bar {{
@@ -310,7 +388,7 @@ SelectCurrent {{
     padding: 0 1;
     background: {bg_light};
     border-bottom: solid {sel};
-    height: 10;
+    height: auto;
 }}
 
 .control-row {{
@@ -320,23 +398,55 @@ SelectCurrent {{
     margin-bottom: 0;
 }}
 
+.quick-action-row {{
+    layout: horizontal;
+    height: 3;
+    align: left middle;
+    margin-top: 1;
+    margin-bottom: 1;
+}}
+
+.action-hint-bar {{
+    color: {fg_muted};
+    margin-left: 1;
+    margin-top: 0;
+    margin-bottom: 1;
+    height: auto;
+}}
+
+.empty-state-banner {{
+    background: {bg};
+    border: dashed {sel};
+    color: {fg_muted};
+    padding: 1 2;
+    margin: 1;
+    height: auto;
+    text-align: center;
+}}
+
+.adherence-progress-bar {{
+    color: {accent};
+    text-style: bold;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0 1;
+    height: auto;
+}}
+
 #profile-select {{
     width: 25;
     margin-right: 1;
 }}
 
-#patient-add-peptide-select {{
-    width: 25;
-    margin-right: 1;
-}}
-
 #new-profile-input {{
-    width: 22;
+    width: 20;
+    margin-bottom: 0;
     margin-right: 1;
 }}
 
-#schedule-protocol-select {{
-    width: 48;
+#patient-add-peptide-select {{
+    width: 30;
+    margin-bottom: 0;
     margin-right: 1;
 }}
 
@@ -345,75 +455,98 @@ SelectCurrent {{
     padding: 0 1;
     background: {bg_light};
     border-bottom: solid {sel};
-    height: auto;
+    height: 6;
+}}
+
+#schedule-protocol-select {{
+    width: 42;
+    margin-bottom: 0;
+    margin-right: 1;
 }}
 
 .schedule-banner-row {{
     layout: horizontal;
-    align: left middle;
-    background: {bg};
-    border: solid {sel};
-    padding: 0 1;
-    margin-top: 1;
-    margin-bottom: 1;
     height: 3;
+    align: left middle;
 }}
 
 #schedule-banner-text {{
     color: {accent};
     text-style: bold;
-}}
-
-.action-title {{
-    color: {accent};
-    text-style: bold;
-    margin-right: 1;
+    height: 3;
+    content-align: left middle;
 }}
 
 DataTable {{
-    height: 1fr;
-    border: solid {sel};
     background: {bg};
+    color: {fg};
+    height: 1fr;
     margin: 0 1;
+}}
+
+DataTable > .datatable--cursor {{
+    background: {sel};
+    color: {fg_bright};
+    text-style: bold;
 }}
 
 .info-pane {{
     padding: 1 2;
     height: 100%;
+    background: {bg};
 }}
 
 .info-section {{
-    background: {bg_light};
-    border: solid {sel};
-    padding: 1 2;
-    margin-bottom: 1;
     height: auto;
+    margin-bottom: 1;
+    padding-bottom: 1;
+    border-bottom: solid {sel};
 }}
 
 .info-title {{
     color: {accent};
     text-style: bold;
-    margin-bottom: 1;
+    margin-bottom: 0;
 }}
 
 .info-text {{
-    color: {fg_light};
-    margin-bottom: 1;
-    height: auto;
+    color: {fg};
 }}
 
 .source-link {{
     color: {accent};
     margin-left: 2;
-    margin-bottom: 1;
-    height: auto;
 }}
 
-#save-target-profiles {{
-    height: 6;
-    border: solid {sel};
-    background: {bg};
-    margin-bottom: 1;
+.track-sources-btn {{
+    background: {sel};
+    color: {accent};
+    margin-left: 2;
+    margin-top: 1;
+    height: 3;
+    min-width: 26;
+}}
+
+.track-sources-btn:hover {{
+    background: {accent};
+    color: {bg};
+}}
+
+#literature-pmid-input {{
+    width: 26;
+    margin-bottom: 0;
+    margin-right: 1;
+}}
+
+#literature-table {{
+    height: 12;
+    margin: 0 1;
+}}
+
+#literature-status {{
+    padding: 0 1;
+    height: 1;
+    color: {fg_muted};
 }}
 
 #save-profile-protocol-btn {{
@@ -421,62 +554,49 @@ DataTable {{
     color: {bg};
     text-style: bold;
     margin-top: 1;
+    width: 100%;
     height: 3;
 }}
 
-#save-schedule-btn, #export-patient-sheet-btn, #export-dose-log-csv-btn {{
-    background: {green};
-    color: {bg};
-    text-style: bold;
-    min-width: 24;
-    margin-left: 1;
-    height: 3;
-}}
-
-#add-profile-btn, #quick-add-peptide-btn {{
-    background: {accent};
-    color: {bg};
-    text-style: bold;
-    min-width: 16;
-    margin-left: 1;
-    height: 3;
-}}
-
-#delete-protocol-btn, #remove-profile-btn, #delete-log-btn {{
+#delete-protocol-btn, #remove-profile-btn, #delete-log-btn, #delete-literature-btn {{
     background: {red};
     color: {fg_bright};
     text-style: bold;
-    min-width: 18;
+    min-width: 16;
     margin-left: 1;
     height: 3;
 }}
 
-#edit-protocol-btn, #log-dose-btn, #view-schedule-btn, #generate-titration-btn {{
-    background: {accent};
-    color: {bg};
-    text-style: bold;
-    min-width: 16;
+#add-profile-btn, #quick-add-peptide-btn, #save-schedule-btn, #split-vial-btn {{
+    background: {sel};
+    color: {fg_bright};
+    min-width: 14;
     margin-left: 1;
     height: 3;
 }}
 
 #split-vial-btn {{
-    background: {accent};
-    color: {bg};
-    text-style: bold;
     margin-top: 1;
-    height: 3;
+    width: 100%;
 }}
 
-.track-sources-btn {{
+#export-dose-log-csv-btn, #export-patient-sheet-btn {{
     background: {sel};
-    color: {accent};
-    text-style: bold;
-    margin-top: 1;
+    color: {fg_bright};
+    min-width: 14;
+    margin-left: 1;
     height: 3;
 }}
 
-#mark-reconstituted-btn, #edit-log-btn {{
+#edit-protocol-btn, #view-schedule-btn, #generate-titration-btn {{
+    background: {sel};
+    color: {fg_bright};
+    min-width: 16;
+    margin-left: 1;
+    height: 3;
+}}
+
+#mark-reconstituted-btn, #edit-log-btn, #fetch-literature-btn {{
     background: {accent};
     color: {bg};
     text-style: bold;
@@ -485,19 +605,24 @@ DataTable {{
     height: 3;
 }}
 
-#literature-peptide-filter {{
-    width: 46;
+#log-dose-btn {{
+    background: {green};
+    color: {bg};
+    text-style: bold;
+    min-width: 16;
     margin-left: 1;
+    height: 3;
 }}
 
 #adherence-table {{
-    height: 10;
+    height: 9;
     margin: 0 1;
 }}
 """
 
 
 def build_confirm_css(c: dict) -> str:
+    """Stylesheet for ConfirmScreen modal."""
     bg_light  = c["lighter_background"]
     fg_bright = c["bright_foreground"]
     sel       = c["selection"]
@@ -509,33 +634,41 @@ ConfirmScreen {{
 }}
 
 #confirm-dialog {{
-    width: 60;
+    width: 52;
     height: auto;
     background: {bg_light};
     border: solid {red};
     padding: 1 2;
 }}
 
-#confirm-message {{
-    color: {fg_bright};
+#confirm-title {{
+    color: {red};
+    text-style: bold;
+    text-align: center;
     margin-bottom: 1;
-    height: auto;
 }}
 
-#confirm-buttons {{
+#confirm-prompt {{
+    color: {fg_bright};
+    text-align: center;
+    margin-bottom: 1;
+}}
+
+#confirm-btn-row {{
     layout: horizontal;
     height: 3;
-    align: right middle;
+    align: center middle;
 }}
 
-#confirm-buttons Button {{
-    margin-left: 1;
-    min-width: 10;
+#confirm-btn-row Button {{
+    min-width: 12;
+    margin: 0 1;
 }}
 
 #confirm-yes {{
     background: {red};
     color: {fg_bright};
+    text-style: bold;
 }}
 
 #confirm-no {{
@@ -546,12 +679,13 @@ ConfirmScreen {{
 
 
 def build_log_dose_css(c: dict) -> str:
-    bg        = c["background"]
+    """Stylesheet for LogDoseScreen modal."""
     bg_light  = c["lighter_background"]
-    fg_light  = c["light_foreground"]
     fg_bright = c["bright_foreground"]
+    fg_muted  = c["dark_foreground"]
     sel       = c["selection"]
     accent    = c["accent"]
+    green     = c["green"]
     red       = c["red"]
 
     return f"""
@@ -559,7 +693,7 @@ LogDoseScreen {{
     align: center middle;
 }}
 
-#logdose-dialog {{
+#log-dose-dialog {{
     width: 60;
     height: auto;
     background: {bg_light};
@@ -567,47 +701,47 @@ LogDoseScreen {{
     padding: 1 2;
 }}
 
-#logdose-message {{
-    color: {fg_bright};
-    margin-bottom: 1;
-    height: auto;
-}}
-
-#logdose-notes {{
+#log-dose-title {{
+    color: {accent};
+    text-style: bold;
+    text-align: center;
     margin-bottom: 1;
 }}
 
-#logdose-taken-at {{
+#log-dose-time-label, #log-dose-notes-label {{
+    color: {fg_muted};
+    margin-top: 1;
+}}
+
+#log-dose-time-input, #log-dose-notes-input {{
     margin-bottom: 1;
 }}
 
-.logdose-field-label {{
-    color: {fg_light};
+#log-dose-status {{
+    color: {red};
+    text-align: center;
+    margin-bottom: 1;
     height: 1;
 }}
 
-#logdose-status {{
-    color: {red};
-    height: auto;
-}}
-
-#logdose-buttons {{
+#log-dose-btn-row {{
     layout: horizontal;
     height: 3;
-    align: right middle;
+    align: center middle;
 }}
 
-#logdose-buttons Button {{
-    margin-left: 1;
-    min-width: 10;
+#log-dose-btn-row Button {{
+    min-width: 14;
+    margin: 0 1;
 }}
 
-#logdose-yes {{
-    background: {accent};
-    color: {bg};
+#log-dose-submit-btn {{
+    background: {green};
+    color: {bg_light};
+    text-style: bold;
 }}
 
-#logdose-no {{
+#log-dose-cancel-btn {{
     background: {sel};
     color: {fg_bright};
 }}
@@ -615,10 +749,10 @@ LogDoseScreen {{
 
 
 def build_edit_dose_css(c: dict) -> str:
-    bg        = c["background"]
+    """Stylesheet for EditDoseScreen modal."""
     bg_light  = c["lighter_background"]
-    fg_light  = c["light_foreground"]
     fg_bright = c["bright_foreground"]
+    fg_muted  = c["dark_foreground"]
     sel       = c["selection"]
     accent    = c["accent"]
     red       = c["red"]
@@ -628,47 +762,72 @@ EditDoseScreen {{
     align: center middle;
 }}
 
-#editdose-dialog {{
-    width: 64;
+#edit-dose-dialog {{
+    width: 60;
     height: auto;
     background: {bg_light};
     border: solid {accent};
     padding: 1 2;
 }}
 
-#editdose-title {{
+#edit-dose-title {{
     color: {accent};
     text-style: bold;
+    text-align: center;
     margin-bottom: 1;
 }}
 
-.editdose-field-label {{
-    color: {fg_light};
+#edit-dose-amount-label, #edit-dose-time-label, #edit-dose-notes-label {{
+    color: {fg_muted};
+    margin-top: 1;
+}}
+
+#edit-dose-amount-row {{
+    layout: horizontal;
+    height: 3;
+    margin-bottom: 1;
+}}
+
+#edit-dose-amount-input {{
+    width: 35;
+    margin-bottom: 0;
+}}
+
+#edit-dose-unit-select {{
+    width: 17;
+    margin-left: 1;
+    margin-bottom: 0;
+}}
+
+#edit-dose-time-input, #edit-dose-notes-input {{
+    margin-bottom: 1;
+}}
+
+#edit-dose-status {{
+    color: {red};
+    text-align: center;
+    margin-bottom: 1;
     height: 1;
 }}
 
-#editdose-status {{
-    color: {red};
-    height: auto;
-}}
-
-#editdose-buttons {{
+#edit-dose-btn-row {{
     layout: horizontal;
     height: 3;
-    align: right middle;
+    align: center middle;
 }}
 
-#editdose-buttons Button {{
-    margin-left: 1;
-    min-width: 12;
+#edit-dose-btn-row Button {{
+    min-width: 14;
+    margin: 0 1;
 }}
 
-#editdose-save {{
+#edit-dose-save-btn {{
     background: {accent};
-    color: {bg};
+    color: {bg_light};
+    text-style: bold;
 }}
 
-#editdose-cancel {{
+#edit-dose-cancel-btn {{
     background: {sel};
     color: {fg_bright};
 }}
@@ -676,10 +835,11 @@ EditDoseScreen {{
 
 
 def build_titration_css(c: dict) -> str:
+    """Stylesheet for TitrationGeneratorScreen modal."""
     bg        = c["background"]
     bg_light  = c["lighter_background"]
-    fg_light  = c["light_foreground"]
     fg_bright = c["bright_foreground"]
+    fg_muted  = c["dark_foreground"]
     sel       = c["selection"]
     accent    = c["accent"]
     red       = c["red"]
@@ -690,8 +850,8 @@ TitrationGeneratorScreen {{
 }}
 
 #titration-dialog {{
-    width: 78;
-    height: auto;
+    width: 76;
+    height: 32;
     background: {bg_light};
     border: solid {accent};
     padding: 1 2;
@@ -700,7 +860,13 @@ TitrationGeneratorScreen {{
 #titration-title {{
     color: {accent};
     text-style: bold;
+    text-align: center;
     margin-bottom: 1;
+}}
+
+#titration-start-label, #titration-target-label, #titration-weeks-label, #titration-freq-label {{
+    color: {fg_muted};
+    margin-top: 1;
 }}
 
 .titration-input-row {{
@@ -709,42 +875,69 @@ TitrationGeneratorScreen {{
     margin-bottom: 1;
 }}
 
-.titration-input-row Label {{
-    width: 22;
-    content-align: left middle;
-    color: {fg_light};
+#titration-start-input, #titration-target-input {{
+    width: 48;
+    margin-bottom: 0;
 }}
 
-.titration-input-row Input {{
-    width: 1fr;
+#titration-start-unit-select, #titration-target-unit-select {{
+    width: 20;
+    margin-left: 1;
+    margin-bottom: 0;
+}}
+
+#titration-weeks-input {{
+    width: 24;
+    margin-bottom: 0;
+}}
+
+#titration-freq-select {{
+    width: 44;
+    margin-left: 1;
+    margin-bottom: 0;
+}}
+
+#titration-preview-label {{
+    color: {accent};
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 0;
+}}
+
+#titration-preview-scroll {{
+    height: 8;
+    background: {bg};
+    border: solid {sel};
+    padding: 0 1;
+    margin-bottom: 1;
+}}
+
+#titration-preview-text {{
+    color: {fg_bright};
 }}
 
 #titration-status {{
     color: {red};
-    height: auto;
+    text-align: center;
     margin-bottom: 1;
+    height: 1;
 }}
 
-#titration-preview-table {{
-    height: 10;
-    border: solid {sel};
-    margin-bottom: 1;
-}}
-
-#titration-buttons {{
+#titration-btn-row {{
     layout: horizontal;
     height: 3;
-    align: right middle;
+    align: center middle;
 }}
 
-#titration-buttons Button {{
-    margin-left: 1;
+#titration-btn-row Button {{
     min-width: 14;
+    margin: 0 1;
 }}
 
 #titration-save-btn {{
     background: {accent};
-    color: {bg};
+    color: {bg_light};
+    text-style: bold;
 }}
 
 #titration-cancel-btn {{
@@ -754,14 +947,15 @@ TitrationGeneratorScreen {{
 """
 
 
-def build_split_css(c: dict) -> str:
+def build_split_vial_css(c: dict) -> str:
+    """Stylesheet for VialSplitScreen modal."""
+    bg        = c["background"]
     bg_light  = c["lighter_background"]
-    fg        = c["foreground"]
-    fg_light  = c["light_foreground"]
+    fg_bright = c["bright_foreground"]
+    fg_muted  = c["dark_foreground"]
     sel       = c["selection"]
     accent    = c["accent"]
     red       = c["red"]
-    bg        = c["background"]
 
     return f"""
 VialSplitScreen {{
@@ -769,7 +963,7 @@ VialSplitScreen {{
 }}
 
 #split-dialog {{
-    width: 70;
+    width: 68;
     height: auto;
     background: {bg_light};
     border: solid {accent};
@@ -779,58 +973,61 @@ VialSplitScreen {{
 #split-title {{
     color: {accent};
     text-style: bold;
+    text-align: center;
     margin-bottom: 1;
 }}
 
-#split-parent-info {{
-    color: {fg_light};
-    margin-bottom: 1;
-    height: auto;
+#split-info-label, #split-count-label {{
+    color: {fg_muted};
+    margin-top: 1;
 }}
 
-.split-input-row {{
-    layout: horizontal;
-    height: 3;
-    margin-bottom: 1;
-}}
-
-.split-input-row Label {{
-    width: 22;
-    content-align: left middle;
-    color: {fg_light};
-}}
-
-.split-input-row Input {{
-    width: 1fr;
-}}
-
-#split-status {{
-    color: {red};
-    height: auto;
+#split-count-input {{
     margin-bottom: 1;
 }}
 
 #split-results {{
-    color: {fg};
-    height: auto;
-    margin-bottom: 1;
+    background: {bg};
     border: solid {sel};
     padding: 1 2;
+    margin-top: 1;
+    margin-bottom: 1;
+    height: auto;
+    color: {fg_bright};
+}}
+
+#split-status {{
+    color: {red};
+    text-align: center;
+    margin-bottom: 1;
+    height: 1;
+}}
+
+#split-btn-row {{
+    layout: horizontal;
+    height: 3;
+    align: center middle;
+}}
+
+#split-btn-row Button {{
+    min-width: 14;
+    margin: 0 1;
 }}
 
 #split-close-btn {{
-    background: {accent};
-    color: {bg};
-    width: 100%;
+    background: {sel};
+    color: {fg_bright};
 }}
 """
 
 
 def build_help_css(c: dict) -> str:
-    bg        = c["background"]
+    """Stylesheet for HelpScreen modal."""
     bg_light  = c["lighter_background"]
     fg        = c["foreground"]
     accent    = c["accent"]
+    sel       = c["selection"]
+    fg_muted  = c["dark_foreground"]
 
     return f"""
 HelpScreen {{
@@ -838,7 +1035,7 @@ HelpScreen {{
 }}
 
 #help-dialog {{
-    width: 74;
+    width: 82;
     height: auto;
     background: {bg_light};
     border: solid {accent};
@@ -852,6 +1049,14 @@ HelpScreen {{
     text-align: center;
 }}
 
+.help-category {{
+    color: {accent};
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 0;
+    border-bottom: solid {sel};
+}}
+
 .help-cmd-row {{
     layout: horizontal;
     height: 1;
@@ -859,7 +1064,7 @@ HelpScreen {{
 }}
 
 .help-cmd-key {{
-    width: 20;
+    width: 22;
     color: {accent};
     text-style: bold;
 }}
@@ -869,24 +1074,25 @@ HelpScreen {{
 }}
 
 #help-close-btn {{
-    margin-top: 1;
     background: {accent};
-    color: {bg};
+    color: {bg_light};
     text-style: bold;
+    margin-top: 1;
     width: 100%;
+    height: 3;
 }}
 """
 
 
 def build_all_css() -> dict[str, str]:
-    """Load current Omarchy colors and return all CSS strings keyed by name."""
-    c = load_colors()
+    """Return a mapping of screen CSS keys to their CSS strings using current palette."""
+    palette = load_palette()
     return {
-        "main":      build_main_css(c),
-        "confirm":   build_confirm_css(c),
-        "log_dose":  build_log_dose_css(c),
-        "edit_dose": build_edit_dose_css(c),
-        "titration": build_titration_css(c),
-        "split":     build_split_css(c),
-        "help":      build_help_css(c),
+        "main":      build_main_css(palette),
+        "confirm":   build_confirm_css(palette),
+        "log_dose":  build_log_dose_css(palette),
+        "edit_dose": build_edit_dose_css(palette),
+        "titration": build_titration_css(palette),
+        "split":     build_split_vial_css(palette),
+        "help":      build_help_css(palette),
     }

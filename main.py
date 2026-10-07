@@ -18,6 +18,7 @@ from textual.widgets import (
     TabbedContent,
     TabPane,
 )
+from textual import events
 from textual.reactive import reactive
 
 import calc
@@ -428,29 +429,46 @@ class HelpScreen(ModalScreen[None]):
     ]
 
     def compose(self) -> ComposeResult:
-        shortcuts = [
-            ("1 / F1", "Calculator & Syringe Visualizer tab"),
-            ("2 / F2", "Patient Tracker (Multi-Person) tab"),
-            ("3 / F3", "Dosing Schedule Planner tab"),
-            ("4 / F4", "Dose Log & Adherence History tab"),
-            ("5 / F5", "Peptide Reference & PubMed Citations tab"),
-            ("6 / F6", "Literature Tracker tab (fetch article by PMID)"),
-            ("Ctrl+P", "Cycle active patient / person profile"),
-            ("Ctrl+S", "Save current schedule to text file"),
-            ("Ctrl+L", "Quick-log dose for active protocol (backdate supported)"),
-            ("Ctrl+R", "Mark selected vial reconstituted (starts BUD)"),
-            ("Tab / Shift+Tab", "Navigate between inputs, buttons & tables"),
-            ("Space / Enter", "Select dropdown option / activate button"),
-            ("? / F12", "Toggle this keyboard shortcuts help"),
-            ("Ctrl+Q", "Quit application"),
+        sections = [
+            ("TAB NAVIGATION", [
+                ("1 / F1", "Calculator & Syringe Visualizer tab"),
+                ("2 / F2", "Patient Tracker (Multi-Person) tab"),
+                ("3 / F3", "Dosing Schedule Planner tab"),
+                ("4 / F4", "Dose Log & Adherence History tab"),
+                ("5 / F5", "Peptide Reference & PubMed Citations tab"),
+                ("6 / F6", "Literature Tracker tab (fetch article by PMID)"),
+            ]),
+            ("PATIENT PROTOCOL TABLE HOTKEYS", [
+                ("L", "Log dose taken for selected protocol"),
+                ("E", "Edit selected protocol in calculator"),
+                ("R", "Mark reconstituted (starts BUD window)"),
+                ("T", "View titration schedule for protocol"),
+                ("Del / X", "Delete selected protocol"),
+            ]),
+            ("DOSE LOG TABLE HOTKEYS", [
+                ("E / Enter", "Edit selected dose log entry"),
+                ("Del / X", "Delete selected dose log entry"),
+            ]),
+            ("GLOBAL SHORTCUTS & ACTIONS", [
+                ("Ctrl+P", "Cycle active patient / person profile"),
+                ("Ctrl+S", "Save current schedule to text file"),
+                ("Ctrl+L", "Quick-log dose for active protocol (backdate supported)"),
+                ("Ctrl+R", "Mark selected vial reconstituted (starts BUD)"),
+                ("Tab / Shift+Tab", "Navigate between inputs, buttons & tables"),
+                ("Space / Enter", "Select dropdown option / activate button"),
+                ("? / F12", "Toggle this keyboard shortcuts help"),
+                ("Ctrl+Q", "Quit application"),
+            ]),
         ]
 
         with Container(id="help-dialog"):
             yield Label("⌨️  KEYBOARD COMMANDS & SHORTCUTS", id="help-title")
-            for key, desc in shortcuts:
-                with Horizontal(classes="help-cmd-row"):
-                    yield Label(key, classes="help-cmd-key")
-                    yield Label(f"• {desc}", classes="help-cmd-desc")
+            for cat_title, shortcuts in sections:
+                yield Label(cat_title, classes="help-category")
+                for key, desc in shortcuts:
+                    with Horizontal(classes="help-cmd-row"):
+                        yield Label(key, classes="help-cmd-key")
+                        yield Label(f"• {desc}", classes="help-cmd-desc")
             yield Button("Close (Esc)", id="help-close-btn")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -508,12 +526,14 @@ class PeptideCalculatorApp(App):
         with Horizontal(classes="global-profile-bar"):
             yield Label("👤 Active Person:", classes="action-title")
             yield Select(options=[("Default User", "1")], value="1", id="profile-select")
+            yield Label("", id="global-status-chips", classes="ambient-status")
         with TabbedContent():
             with TabPane("Calculator & Syringe Visualizer", id="calc-tab"):
                 with Grid(classes="pane-container"):
                     # Left Sidebar: Inputs in Scrollable Container
                     with ScrollableContainer(classes="sidebar-panel"):
                         yield Label("PEPTIDE CONFIGURATION", classes="title-label")
+                        yield Label("", id="calc-edit-mode-banner")
                         
                         yield Label("Select Peptide Template:", classes="input-label")
                         yield Select(
@@ -562,6 +582,14 @@ class PeptideCalculatorApp(App):
                     with ScrollableContainer(classes="results-panel"):
                         yield Label("DILUTION & CALCULATED DOSES", classes="title-label")
                         
+                        with Container(classes="hero-card"):
+                            yield Label("U-100 INSULIN SYRINGE DRAW", classes="hero-title")
+                            yield Label("Enter valid inputs...", id="calc-syringe-draw", classes="hero-value highlight-val")
+                            yield Label("", id="calc-safety-badge")
+
+                        yield Label("INSULIN SYRINGE DRAW VISUALIZER (U-100 Syringe)", classes="title-label")
+                        yield Label("  Syringe representation will appear here when inputs are valid.", id="syringe-visual")
+
                         with Horizontal(classes="result-row"):
                             yield Label("Active Profile:", classes="result-label")
                             yield Label("Default User", id="calc-active-profile", classes="result-val highlight-val")
@@ -575,15 +603,9 @@ class PeptideCalculatorApp(App):
                             yield Label("Enter valid inputs...", id="calc-dose-volume", classes="result-val")
                             
                         with Horizontal(classes="result-row"):
-                            yield Label("U-100 Syringe Draw:", classes="result-label")
-                            yield Label("Enter valid inputs...", id="calc-syringe-draw", classes="result-val highlight-val")
-                            
-                        with Horizontal(classes="result-row"):
                             yield Label("Total Doses per Vial:", classes="result-label")
                             yield Label("Enter valid inputs...", id="calc-doses-per-vial", classes="result-val")
                         
-                        yield Label("INSULIN SYRINGE DRAW VISUALIZER (U-100 Syringe)", classes="title-label")
-                        yield Label("  Syringe representation will appear here when inputs are valid.", id="syringe-visual")
                         yield Button("🧪 Split Vial Into Aliquots", id="split-vial-btn")
 
             with TabPane("Patient Tracker (Multi-Person)", id="patient-tab"):
@@ -594,18 +616,24 @@ class PeptideCalculatorApp(App):
                             yield Input(placeholder="New person name...", id="new-profile-input")
                             yield Button("+ Add Person", id="add-profile-btn")
                             yield Button("❌ Remove Person", id="remove-profile-btn")
+                            yield Button("🖨️ Export Printable Sheet", id="export-patient-sheet-btn")
                         with Horizontal(classes="control-row"):
-                            yield Label("Quick Add Peptide:", classes="action-title")
+                            yield Label("Quick Add:", classes="action-title")
                             yield Select(options=[("BPC-157", "BPC-157")], value="BPC-157", id="patient-add-peptide-select")
                             yield Button("+ Add to Person", id="quick-add-peptide-btn")
-                            yield Button("🖨️ Export Printable Sheet", id="export-patient-sheet-btn")
-                            yield Button("❌ Remove Selected", id="delete-protocol-btn")
-                        with Horizontal(classes="control-row"):
-                            yield Button("✏️ Edit Selected", id="edit-protocol-btn")
-                            yield Button("💊 Log Dose Taken", id="log-dose-btn")
-                            yield Button("📅 View Titration Schedule", id="view-schedule-btn")
-                            yield Button("🧬 Generate Titration Schedule", id="generate-titration-btn")
-                            yield Button("🧊 Mark Reconstituted", id="mark-reconstituted-btn")
+                        with Horizontal(classes="quick-action-row"):
+                            yield Label("Selected Protocol:", classes="action-title")
+                            yield Button("💊 Log Dose Taken [L]", id="log-dose-btn")
+                            yield Button("✏️ Edit Selected [E]", id="edit-protocol-btn")
+                            yield Button("❄️ Mark Reconstituted [R]", id="mark-reconstituted-btn")
+                            yield Button("📅 Titration Schedule [T]", id="view-schedule-btn")
+                            yield Button("📈 Generate Titration", id="generate-titration-btn")
+                            yield Button("🗑️ Remove Selected [Del]", id="delete-protocol-btn")
+                        yield Label(
+                            "💡 Table Hotkeys: [L]og Dose  •  [E]dit Protocol  •  [R]econstitute  •  [T]itration  •  [Del] Remove",
+                            classes="action-hint-bar"
+                        )
+                    yield Label("", id="patient-empty-state-banner", classes="empty-state-banner")
                     yield DataTable(id="patient-protocols-table", cursor_type="row")
 
             with TabPane("Dosing Schedule Planner", id="schedule-tab"):
@@ -631,6 +659,7 @@ class PeptideCalculatorApp(App):
                         yield Button("✏️ Edit Entry", id="edit-log-btn")
                         yield Button("🗑️ Delete Entry", id="delete-log-btn")
                     yield Label("Adherence Summary", classes="title-label")
+                    yield Label("", id="adherence-progress-bar", classes="adherence-progress-bar")
                     yield DataTable(id="adherence-table", cursor_type="row")
                     yield Label("Recent Dose Log", classes="title-label")
                     yield DataTable(id="dose-log-table", cursor_type="row")
@@ -680,6 +709,11 @@ class PeptideCalculatorApp(App):
 
         self.refresh_profiles()
         self.refresh_peptide_templates()
+        try:
+            self.query_one("#calc-edit-mode-banner", Label).update("")
+        except Exception:
+            pass
+
         self.refresh_patient_protocols_table()
         self.refresh_dose_log_tables()
         self.refresh_schedule_selector()
@@ -770,6 +804,37 @@ class PeptideCalculatorApp(App):
                 prof_select.value = str(self.active_profile_id)
         except Exception:
             pass
+
+        # Ambient situational awareness summary
+        try:
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            protocols = db.get_user_protocols(self.active_profile_id)
+            adherence = db.get_protocol_adherence(self.active_profile_id)
+            n_proto = len(protocols)
+            due_count = 0
+            bud_warn = 0
+            for a in adherence:
+                due_at = a.get("next_due_at")
+                if due_at and due_at <= now:
+                    due_count += 1
+                if a.get("bud_exceeded"):
+                    bud_warn += 1
+                elif a.get("bud_expiry_at"):
+                    rem = (a["bud_expiry_at"] - now).total_seconds()
+                    if 0 <= rem <= 3 * 86400:
+                        bud_warn += 1
+
+            parts = [f"📦 {n_proto} Protocol(s)"]
+            if due_count > 0:
+                parts.append(f"⏰ {due_count} Due Today")
+            if bud_warn > 0:
+                parts.append(f"❄️ {bud_warn} BUD Alert")
+            if due_count == 0 and bud_warn == 0 and n_proto > 0:
+                parts.append("✓ Up to date")
+            self.query_one("#global-status-chips", Label).update("  •  ".join(parts))
+        except Exception:
+            pass
+
         self.refresh_save_target_profiles()
         self.refresh_patient_protocols_table()
         self.refresh_dose_log_tables()
@@ -798,6 +863,19 @@ class PeptideCalculatorApp(App):
             patient_add_select.value = "BPC-157"
         elif names:
             patient_add_select.value = sorted(names)[0]
+
+        try:
+            empty_banner = self.query_one("#patient-empty-state-banner", Label)
+            profiles = db.get_profiles()
+            cur_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), "this person")
+            if not protocols:
+                empty_banner.update(f"ℹ️ No active protocols saved yet for {cur_name}. Use 'Quick Add' above or create one in the Calculator!")
+                empty_banner.display = True
+            else:
+                empty_banner.update("")
+                empty_banner.display = False
+        except Exception:
+            pass
 
         try:
             self.refresh_schedule_selector()
@@ -900,6 +978,19 @@ class PeptideCalculatorApp(App):
                 pass
 
         try:
+            empty_banner = self.query_one("#patient-empty-state-banner", Label)
+            profiles = db.get_profiles()
+            cur_name = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), "this person")
+            if not protocols:
+                empty_banner.update(f"ℹ️ No active protocols saved yet for {cur_name}. Use 'Quick Add' above or create one in the Calculator!")
+                empty_banner.display = True
+            else:
+                empty_banner.update("")
+                empty_banner.display = False
+        except Exception:
+            pass
+
+        try:
             self.refresh_schedule_selector()
         except Exception:
             pass
@@ -910,6 +1001,23 @@ class PeptideCalculatorApp(App):
             dose_log_table = self.query_one("#dose-log-table", DataTable)
         except Exception:
             return  # tables not mounted yet
+
+        # Compute overall adherence visual progress
+        try:
+            adherence_entries = db.get_protocol_adherence(self.active_profile_id)
+            valid_percents = [e["adherence_percent"] for e in adherence_entries if e.get("adherence_percent") is not None]
+            if valid_percents:
+                avg = sum(valid_percents) / len(valid_percents)
+                filled_blocks = int(round((avg / 100.0) * 16))
+                bar = "█" * filled_blocks + "░" * (16 - filled_blocks)
+                status_text = f"Overall Adherence: [{bar}] {avg:.0f}% ({len(valid_percents)} protocol(s) tracked)"
+            elif adherence_entries:
+                status_text = "Overall Adherence: Initializing (awaiting scheduled doses)"
+            else:
+                status_text = "Overall Adherence: No active protocols"
+            self.query_one("#adherence-progress-bar", Label).update(status_text)
+        except Exception:
+            pass
 
         adherence_table.clear()
         now = datetime.now(timezone.utc).replace(tzinfo=None)  # naive UTC, to match db.py's next_due_at
@@ -1147,6 +1255,10 @@ class PeptideCalculatorApp(App):
             
         if event.select.id == "peptide-select":
             self.peptide = str(event.value)
+            try:
+                self.query_one("#calc-edit-mode-banner", Label).update("")
+            except Exception:
+                pass
             p = db.get_peptide_by_name(self.peptide)
             if p:
                 self.query_one("#vial-size-input", Input).value = f"{p['vial_mg']}"
@@ -1442,6 +1554,15 @@ class PeptideCalculatorApp(App):
         self.target_dose = protocol["target_dose"]
         self.dose_unit = protocol["dose_unit"]
 
+        try:
+            profiles = db.get_profiles()
+            cur_p = next((p["name"] for p in profiles if p["id"] == self.active_profile_id), "profile")
+            self.query_one("#calc-edit-mode-banner", Label).update(
+                f"✏️ Editing Protocol: {protocol['peptide_name']} for {cur_p} • Modify values below and click Save Protocol to apply."
+            )
+        except Exception:
+            pass
+
         self.query_one(TabbedContent).active = "calc-tab"
         # TabbedContent re-syncs `active` to whichever tab contains the
         # focused widget (see TabPane._on_descendant_focus), and the button
@@ -1713,6 +1834,10 @@ class PeptideCalculatorApp(App):
                 self.query_one("#calc-concentration", Label).update(problem)
                 self.query_one("#calc-dose-volume", Label).update(problem)
                 self.query_one("#calc-syringe-draw", Label).update(problem)
+                try:
+                    self.query_one("#calc-safety-badge", Label).update("")
+                except Exception:
+                    pass
                 self.query_one("#calc-doses-per-vial", Label).update(problem)
                 self.query_one("#syringe-visual", Label).update("  Syringe representation will appear here when inputs are valid.")
                 return
@@ -1727,11 +1852,22 @@ class PeptideCalculatorApp(App):
             self.query_one("#calc-concentration", Label).update(f"{conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL)")
             self.query_one("#calc-dose-volume", Label).update(f"{draw_volume_ml:.3f} mL")
             
+            draw_label, safety_status = calc.syringe_draw_status(syringe_units)
             if syringe_units > 100.0:
                 self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units [bold red](Exceeds Capacity!)[/]")
             else:
                 self.query_one("#calc-syringe-draw", Label).update(f"{syringe_units:.1f} Units")
                 
+            try:
+                if "⚠️" in draw_label or "Exceeds" in safety_status:
+                    self.query_one("#calc-safety-badge", Label).update(f"⚠️ {safety_status}")
+                elif "Low" in safety_status:
+                    self.query_one("#calc-safety-badge", Label).update(f"⚠️ {safety_status}")
+                else:
+                    self.query_one("#calc-safety-badge", Label).update(f"✓ {safety_status}")
+            except Exception:
+                pass
+
             self.query_one("#calc-doses-per-vial", Label).update(f"{doses_per_vial:.1f} doses")
             
             syringe_ascii = make_syringe_display(syringe_units)
@@ -2392,6 +2528,43 @@ class PeptideCalculatorApp(App):
         self.query_one(TabbedContent).active = "patient-tab"
         self.set_focus(self.query_one("#patient-protocols-table", DataTable))
         self.mark_selected_protocol_reconstituted()
+
+    def on_key(self, event: events.Key) -> None:
+        if isinstance(self.focused, Input):
+            return
+
+        focused = self.focused
+        if not focused:
+            return
+
+        k = event.key.lower()
+        if focused.id == "patient-protocols-table":
+            if k == "l":
+                event.stop()
+                self.log_selected_protocol_dose()
+            elif k == "e":
+                event.stop()
+                self.load_selected_protocol_for_edit()
+            elif k == "r":
+                event.stop()
+                self.mark_selected_protocol_reconstituted()
+            elif k == "t":
+                event.stop()
+                self.view_selected_protocol_schedule()
+            elif k in ("delete", "backspace", "d", "x"):
+                event.stop()
+                self.delete_selected_patient_protocol()
+        elif focused.id == "dose-log-table":
+            if k in ("e", "enter"):
+                event.stop()
+                self.edit_selected_dose_log_entry()
+            elif k in ("delete", "backspace", "d", "x"):
+                event.stop()
+                self.delete_selected_dose_log_entry()
+        elif focused.id == "literature-table":
+            if k in ("delete", "backspace", "d", "x"):
+                event.stop()
+                self.delete_selected_tracked_article()
 
     def action_show_help(self) -> None:
         self.push_screen(HelpScreen())

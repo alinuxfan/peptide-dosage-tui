@@ -38,37 +38,98 @@ A high-performance, responsive Terminal User Interface (TUI) built with **Python
 
 ## 📋 Supported Peptides Database
 
-The application includes pre-configured master templates and accredited scientific literature citations for:
+The application includes pre-configured master templates and accredited scientific literature citations for all 56 peptides and compounds, organized below into functional categories:
+
+### 🧬 Growth Hormone Secretagogues, Endocrine & Reproductive
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
+| **Sermorelin** | GHRH Analogue | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $300.0\text{ mcg}$ daily |
+| **Tesamorelin** | GHRH Analogue / Fat Reduction | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ daily (at bedtime) |
+| **CJC-1295** | GHRH Secretagogue | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily |
+| **CJC-1295 with DAC** | Long-Acting GHRH Secretagogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ weekly (or twice weekly) |
+| **Ipamorelin** | Selective GH Secretagogue | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $200.0\text{ mcg}$ daily (before bed) |
+| **GHRP-2** | Growth Hormone Secretagogue (Ghrelin Agonist) | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $100.0\text{ mcg}$ daily (1-3x, pre-meal) |
+| **GHRP-6** | Hexapeptide GH Secretagogue / Appetite Stimulant | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $100.0\text{ mcg}$ daily (1-3x) |
+| **IGF-1 LR3** | Long-Acting IGF-1 Analogue | $0.1\text{ mg}$ | $1.0\text{ mL}$ | $20.0\text{ mcg}$ daily (post-workout) |
+| **Kisspeptin-10** | HPG Axis / GnRH Stimulator | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily |
+| **Oxytocin** | Neuropeptide Hormone / Anxiolytic | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $40.0\text{ mcg}$ daily to 2x daily |
+| **HCG** | LH-Mimetic Glycoprotein Hormone | $5.0\text{ mg}$ | $1.0\text{ mL}$ | $250.0\text{ mcg}$ 2-3x weekly |
+| **VIP** | Vasoactive Intestinal Neuropeptide | $5.0\text{ mg}$ | $5.0\text{ mL}$ | $50.0\text{ mcg}$ as directed (intranasal), up to 4x daily |
+
+### ⚡ Metabolic, Incretin Mimetics & Weight Management
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
+| **Semaglutide** | GLP-1 Receptor Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
+| **Tirzepatide** | GIP / GLP-1 Dual Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ weekly |
+| **Retatrutide** | GLP-1 / GIP / GCGR Triple Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ weekly |
+| **Cagrilintide** | Long-Acting Amylin Analogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
+| **Mazdutide** | GLP-1 / Glucagon Receptor Dual Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $3.0\text{ mg}$ weekly |
+| **Survodutide** | Glucagon / GLP-1 Receptor Dual Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.6\text{ mg}$ weekly |
+| **AOD-9604** | Lipolytic GH Fragment | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $300.0\text{ mcg}$ daily |
+| **5-Amino-1MQ** | NNMT Inhibitor / Metabolic Modulator | $50.0\text{ mg}$ | $5.0\text{ mL}$ | $10.0\text{ mg}$ daily |
+| **Adipotide** | Targeted Proapoptotic Vascular Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $0.5\text{ mg}$ 3x weekly |
+
+### 🩹 Tissue Repair, Healing, Bioregulators & Immunity
 
 | Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
 | :--- | :--- | :--- | :--- | :--- |
 | **BPC-157** | Tissue Repair / Healing | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
-| **Tesamorelin** | GHRH Analogue / Fat Reduction | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ daily (bedtime) |
-| **Tirzepatide** | GIP / GLP-1 Dual Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ weekly |
-| **Semaglutide** | GLP-1 Receptor Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
-| **Retatrutide** | GLP-1 / GIP / GCGR Triple Agonist | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ weekly |
-| **MOTS-c** | Mitochondrial-Derived Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ (3x weekly) |
-| **CJC-1295** | GHRH Secretagogue | $2.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily |
-| **Ipamorelin** | Selective GH Secretagogue | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $200.0\text{ mcg}$ daily (bedtime) |
-| **Sermorelin** | GHRH Analogue | $5.0\text{ mg}$ | $2.5\text{ mL}$ | $300.0\text{ mcg}$ daily |
-| **AOD-9604** | Lipolytic GH Fragment | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $300.0\text{ mcg}$ daily (morning) |
-| **NAD+** | Cellular Coenzyme | $500.0\text{ mg}$ | $5.0\text{ mL}$ | $50.0\text{ mg}$ (2x weekly) |
+| **TB-500** | Thymosin Beta-4 Fragment | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ 2x weekly (loading) |
+| **Thymosin Alpha-1** | Immunomodulatory Thymic Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $1.6\text{ mg}$ 2x weekly |
+| **Thymalin** | Thymus-Derived Immune Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ daily (short course) |
+| **Cartalax** | Cartilage Bioregulator (Ala-Glu-Asp) | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily (short course) |
+| **Ara-290 (Cibinetide)** | EPO-Derived Tissue Protective Peptide | $4.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ 3x weekly |
+| **KPV** | Alpha-MSH Anti-Inflammatory Tripeptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
+| **LL-37** | Cathelicidin Antimicrobial / Wound Healing Peptide | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $200.0\text{ mcg}$ daily |
+
+### 🧠 Nootropics, Neuroprotection & Sleep Regulation
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
+| **Semax** | Nootropic/Neuroprotective Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $300.0\text{ mcg}$ daily (SubQ injection, morning) |
+| **Selank** | Anxiolytic/Nootropic Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $250.0\text{ mcg}$ daily (SubQ injection, morning or split AM/PM) |
+| **Adamax** | Synthetic Semax Derivative Nootropic | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
+| **Dihexa** | Angiotensin IV / HGF Activator Nootropic | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $2.0\text{ mg}$ daily |
+| **Pinealon** | Neuroprotective Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily (short course) |
+| **DSIP** | Sleep-Regulating Nonapeptide | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ nightly (before bed) |
+| **Melatonin** | Circadian Rhythm Pineal Hormone | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $3.0\text{ mg}$ nightly (before bed) |
+
+### 🧴 Cosmetic, Dermatological & Melanocortin
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
+| **GHK-Cu** | Copper-Binding Tripeptide | $100.0\text{ mg}$ | $5.0\text{ mL}$ | $1.0\text{ mg}$ daily |
+| **AHK-Cu** | Copper-Binding Hair/Follicle Tripeptide | $50.0\text{ mg}$ | $5.0\text{ mL}$ | $1.0\text{ mg}$ daily |
+| **Snap-8** | Cosmetic Anti-Wrinkle Octapeptide | $50.0\text{ mg}$ | $10.0\text{ mL}$ | $5.0\text{ mg}$ daily (topical) |
+| **Melanotan I** | Melanocortin Receptor Agonist (MC1R) | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily (loading), then 2-3x weekly (maintenance) |
+| **Melanotan II** | Melanocortin Receptor Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily (loading), then 2-3x weekly (maintenance) |
+| **PT-141** | Melanocortin Receptor Agonist (Libido) | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ as needed (PRN), 45 min before activity, max 1x/24hr |
+
+### 🔋 Mitochondrial Energy, Longevity & Cellular Health
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
+| **NAD+** | Cellular Coenzyme | $500.0\text{ mg}$ | $5.0\text{ mL}$ | $50.0\text{ mg}$ twice weekly |
+| **MOTS-c** | Mitochondrial-Derived Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ 3x weekly |
+| **SS-31 (Elamipretide)** | Mitochondria-Targeted Cardioprotective Peptide | $50.0\text{ mg}$ | $2.0\text{ mL}$ | $4.0\text{ mg}$ daily |
+| **Epithalon** | Telomerase-Activating Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ daily (short course) |
+| **FOXO4-DRI** | Retro-Inverso Senolytic Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ 3x weekly (short course) |
+| **PNC-27** | Chimeric p53-Penetratin Peptide | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ daily |
+| **AICAR** | AMPK Activator | $50.0\text{ mg}$ | $2.0\text{ mL}$ | $50.0\text{ mg}$ 3x weekly |
+| **Vitamin B12 (Methylcobalamin)** | Cobalamin Vitamin / Metabolic Coenzyme | $5.0\text{ mg}$ | $1.0\text{ mL}$ | $1000.0\text{ mcg}$ weekly |
+
+### 🧪 Synergistic Multi-Peptide Blends
+
+| Peptide | Type / Class | Standard Vial | Recommended BAC Water | Typical Target Dose |
+| :--- | :--- | :--- | :--- | :--- |
 | **GLOW Blend** | GHK-Cu / BPC-157 / TB-500 | $50.0\text{ mg}$ | $3.0\text{ mL}$ | $1.5\text{ mg}$ daily |
 | **KLOW Blend** | GHK-Cu / BPC / TB / KPV | $50.0\text{ mg}$ | $3.0\text{ mL}$ | $1.5\text{ mg}$ daily |
-| **DSIP** | Sleep-Regulating Nonapeptide | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ nightly |
-| **Melanotan II** | Melanocortin Receptor Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $250.0\text{ mcg}$ daily (loading) |
-| **GHK-Cu** | Copper-Binding Tripeptide | $100.0\text{ mg}$ | $5.0\text{ mL}$ | $1.0\text{ mg}$ daily |
-| **Cagrilintide** | Long-Acting Amylin Analogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $0.25\text{ mg}$ weekly |
-| **CJC-1295 with DAC** | Long-Acting GHRH Secretagogue | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ weekly |
-| **Selank** | Anxiolytic/Nootropic Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $250.0\text{ mcg}$ daily |
-| **Semax** | Nootropic/Neuroprotective Peptide | $11.0\text{ mg}$ | $5.0\text{ mL}$ | $300.0\text{ mcg}$ daily |
-| **Pinealon** | Neuroprotective Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $100.0\text{ mcg}$ daily |
-| **PT-141** | Melanocortin Receptor Agonist (Libido) | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ PRN |
-| **Epithalon** | Telomerase-Activating Bioregulator | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $5.0\text{ mg}$ daily (course) |
-| **AICAR** | AMPK Activator | $50.0\text{ mg}$ | $2.0\text{ mL}$ | $50.0\text{ mg}$ (3x weekly) |
-| **TB-500** | Thymosin Beta-4 Fragment | $5.0\text{ mg}$ | $2.0\text{ mL}$ | $2.5\text{ mg}$ (2x weekly) |
-| **IGF-1 LR3** | Long-Acting IGF-1 Analogue | $0.1\text{ mg}$ | $1.0\text{ mL}$ | $20.0\text{ mcg}$ daily |
-
+| **CJC-1295 / Ipamorelin Blend** | GHRH Analogue + Selective GH Secretagogue | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $200.0\text{ mcg}$ daily (before bed) |
+| **Cagrilintide / Semaglutide Blend** | Dual Amylin / GLP-1 Receptor Agonist | $10.0\text{ mg}$ | $2.0\text{ mL}$ | $0.5\text{ mg}$ weekly |
+| **BPC-157 / TB-500 Blend** | Regenerative Tissue Healing Blend | $20.0\text{ mg}$ | $2.0\text{ mL}$ | $1.0\text{ mg}$ 2x weekly |
+| **LC216 (Lipotropic/MIC Blend)** | Lipotropic / MIC Blend | $300.0\text{ mg}$ | $10.0\text{ mL}$ | $30.0\text{ mg}$ 1-2x weekly |
 ---
 
 ## 🚀 Installation
