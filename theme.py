@@ -477,6 +477,14 @@ SelectionList {{
     content-align: left middle;
 }}
 
+#schedule-inventory-text {{
+    color: {accent};
+    text-style: bold;
+    height: 3;
+    content-align: left middle;
+    margin: 0 1;
+}}
+
 DataTable {{
     background: {bg};
     color: {fg};

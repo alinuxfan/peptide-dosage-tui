@@ -650,6 +650,7 @@ class PeptideCalculatorApp(App):
                         with Horizontal(classes="schedule-banner-row"):
                             yield Label("Loading schedule details...", id="schedule-banner-text")
                     yield DataTable(id="schedule-table", cursor_type="row")
+                    yield Label("", id="schedule-inventory-text")
 
             with TabPane("Dose Log", id="dose-log-tab"):
                 with Vertical():
@@ -1879,6 +1880,7 @@ class PeptideCalculatorApp(App):
         try:
             table = self.query_one("#schedule-table", DataTable)
             banner = self.query_one("#schedule-banner-text", Label)
+            inventory_label = self.query_one("#schedule-inventory-text", Label)
             sched_select = self.query_one("#schedule-protocol-select", Select)
         except Exception:
             return
@@ -1895,9 +1897,11 @@ class PeptideCalculatorApp(App):
                 table.clear(columns=True)
                 table.add_columns("Notice")
                 table.add_row(f"No active protocols assigned for {prof_name}. Use the selector above to explore titration schedules for Catalog peptides.")
+                inventory_label.update("")
                 return
 
             banner.update(f"📋 Showing All {len(protocols)} Peptides for {prof_name} • Full Titration & Reconstitution Overview")
+            inventory_label.update("💊 Select a single peptide above to see its 1/3/6-month inventory projection.")
             table.clear(columns=True)
             table.add_columns(
                 "Peptide",
@@ -1969,6 +1973,10 @@ class PeptideCalculatorApp(App):
                 f"Strength: {conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL) | "
                 f"Prescribed: {p['target_dose']} {p['dose_unit']} ({freq})"
             )
+            inventory_label.update(
+                "📦 Inventory needed: "
+                + calc.format_inventory_projection(p.get("schedule"), p["target_dose"], p["dose_unit"], weekly_exp, vial_mg)
+            )
 
             table.clear(columns=True)
             table.add_columns(
@@ -2024,6 +2032,10 @@ class PeptideCalculatorApp(App):
                 f"Strength: {conc_mg_ml:.2f} mg/mL ({conc_mcg_ml:,.0f} mcg/mL) | "
                 f"Standard Dose: {cat['dose']} {cat['unit']} ({freq})"
             )
+            inventory_label.update(
+                "📦 Inventory needed: "
+                + calc.format_inventory_projection(cat.get("schedule"), cat["dose"], cat["unit"], weekly_exp, vial_mg)
+            )
 
             table.clear(columns=True)
             table.add_columns(
@@ -2069,8 +2081,13 @@ class PeptideCalculatorApp(App):
             conc_mg_ml = calc.concentration_mg_ml(vial_mg, water_ml)
             p = db.get_peptide_by_name(self.peptide)
             schedule_steps = p["schedule"] if p and p["schedule"] else [("Custom Dose", self.target_dose, self.dose_unit)]
+            weekly_exp = calc.parse_weekly_frequency(p["freq"]) if p else None
 
             banner.update(f"🔬 Showing: {self.peptide} (Calculator) | Vial: {vial_mg:.1f} mg | BAC Water: {water_ml:.1f} mL | Conc: {conc_mg_ml:.2f} mg/mL")
+            inventory_label.update(
+                "📦 Inventory needed: "
+                + calc.format_inventory_projection(schedule_steps, self.target_dose, self.dose_unit, weekly_exp, vial_mg)
+            )
 
             table.clear(columns=True)
             table.add_columns(
