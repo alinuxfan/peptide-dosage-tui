@@ -9,6 +9,18 @@ A high-performance, responsive Terminal User Interface (TUI) built with **Python
 
 ---
 
+## 📸 Screenshots
+
+| Calculator & Syringe Visualizer | Patient Tracker |
+|---|---|
+| ![Calculator](screenshots/calculator.svg) | ![Patient Tracker](screenshots/patient-tracker.svg) |
+
+| Dosing Schedule Planner (with inventory projection) | Peptide Reference & Cited Sources |
+|---|---|
+| ![Dosing Schedule Planner](screenshots/schedule-planner.svg) | ![Reference](screenshots/reference.svg) |
+
+---
+
 ## 🌟 Key Features
 
 ### 💉 1. Reconstitution & Syringe Calculator
